@@ -17,6 +17,11 @@
 - [confidence: cao] Next 16: file `middleware.ts` deprecated → đổi sang `proxy.ts` export hàm `proxy`. Build vẫn chạy với middleware nhưng có warning. **Bối cảnh**: review finding #2.
 - [confidence: cao] RLS INSERT siết: `to authenticated with check (auth.uid()::text = user_id ...)`. Cột user_id là text nên ép `auth.uid()::text`. Verify: anon INSERT → 401 "violates row-level security policy". **Bối cảnh**: migration 0002.
 
+## Broadcast / Typing (Supabase)
+- [confidence: cao] Supabase **broadcast** (khác Postgres changes & Presence) cho event ephemeral không cần lưu DB — vd typing indicator. `channel.on("broadcast",{event},cb)` + `channel.send`. Mặc định no self-echo. **Bối cảnh**: typing-indicator 2026-06-23.
+- [confidence: cao] `.on("broadcast", cb)` — KHÔNG annotate kiểu param callback (làm hỏng overload → rơi sang "system"). Đọc `msg.payload as T | undefined` + guard. **Bối cảnh**: build typing.
+- [confidence: cao] Typing indicator: **throttle phía gửi** — phát true 1 lần khi bắt đầu + heartbeat re-send mỗi ~2s khi vẫn gõ, KHÔNG phát mỗi keystroke (tiết kiệm quota Realtime: ~7 msg/10s thay vì hàng trăm). Receiver timeout 4s > heartbeat 2s để không ẩn nhầm. Phía nhận: per-user setTimeout tự xóa khi tab đóng đột ngột. **Bối cảnh**: Checker bắt finding 🟡, fix throttle+heartbeat.
+
 ## Quy trình loop (cập nhật)
 - [confidence: cao] Custom agents (.claude/agents/), commands (.claude/commands/), hook (.claude/settings.json), MCP (.mcp.json) **không nạp giữa session** nếu tạo sau khi Claude Code khởi động → cần restart. Sau restart: agent gọi qua Agent tool, command thành skill, MCP tool xuất hiện. **Bối cảnh**: dogfood pipeline auth phải mô phỏng bằng general-purpose subagent trước restart, sau restart thì feature-builder/code-reviewer dùng được thật.
 - [confidence: cao] Dogfood Maker≠Checker hiệu quả: Checker (subagent độc lập) bắt được điều Maker bỏ sót bằng cách tự đọc source lib, không tin báo cáo Maker. **Bối cảnh**: review auth tìm ra PKCE flow + middleware deprecation.

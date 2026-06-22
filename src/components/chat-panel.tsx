@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/use-auth";
 import { useMessages } from "@/lib/use-messages";
+import { useTyping } from "@/lib/use-typing";
 import type { Message } from "@/lib/types";
 
 function formatTime(iso: string): string {
@@ -16,6 +17,13 @@ function formatTime(iso: string): string {
 function nameFromEmail(email: string | undefined): string {
   if (!email) return "Bạn";
   return email.split("@")[0];
+}
+
+/** "A đang nhập…" / "A, B đang nhập…" / "A, B +2 đang nhập…". */
+function typingLabel(names: string[]): string {
+  if (names.length === 0) return "";
+  if (names.length <= 2) return `${names.join(", ")} đang nhập…`;
+  return `${names.slice(0, 2).join(", ")} +${names.length - 2} đang nhập…`;
 }
 
 /**
@@ -33,6 +41,13 @@ export function ChatPanel({ fallback }: { fallback: Message[] }) {
     [user?.id, user?.email],
   );
   const { messages, ready, error, send } = useMessages(identity);
+  // Identity cho typing: chỉ login + đã nối Supabase mới có danh tính thật.
+  // null → hook không phát + (không lọc theo userId nào, nhưng cũng không gửi).
+  const typingIdentity = useMemo(
+    () => (ready && user ? { userId: identity.userId, userName: identity.userName } : null),
+    [ready, user, identity.userId, identity.userName],
+  );
+  const { typingUsers, notifyTyping, stopTyping } = useTyping(typingIdentity);
   const [draft, setDraft] = useState("");
   const [mockMessages, setMockMessages] = useState<Message[]>(fallback);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -51,6 +66,8 @@ export function ChatPanel({ fallback }: { fallback: Message[] }) {
     const body = draft.trim();
     if (!body || !canSend) return;
     setDraft("");
+    // Gửi tin → tắt typing ngay (không chờ timer 2s). No-op nếu chưa login.
+    if (typingIdentity) stopTyping();
 
     if (ready) {
       await send(body);
@@ -109,6 +126,12 @@ export function ChatPanel({ fallback }: { fallback: Message[] }) {
         <div ref={bottomRef} />
       </div>
 
+      {typingUsers.length > 0 && (
+        <p className="px-4 pb-1 text-xs italic text-zinc-500" aria-live="polite">
+          {typingLabel(typingUsers.map((u) => u.userName))}
+        </p>
+      )}
+
       {showLoginCta && (
         <p className="border-t border-zinc-200 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-800">
           Đăng nhập (góc trên) để gửi tin nhắn.
@@ -118,7 +141,11 @@ export function ChatPanel({ fallback }: { fallback: Message[] }) {
       <div className="flex gap-2 border-t border-zinc-200 p-3 dark:border-zinc-800">
         <input
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            // Phát typing chỉ khi đã nối Supabase + đã login (typingIdentity != null).
+            if (typingIdentity) notifyTyping();
+          }}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder={canSend ? "Nhập tin nhắn…" : "Đăng nhập để chat…"}
           disabled={!canSend}
