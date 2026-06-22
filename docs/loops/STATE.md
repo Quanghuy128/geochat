@@ -17,7 +17,7 @@
 | 0. Khung cỗ máy tối thiểu | ✅ Done | CLAUDE.md ✅, 2 agents ✅, hook careful ✅, STATE/learnings ✅ |
 | 1. Scaffold Next.js app | ✅ Done | Next 16 TS+Tailwind+App Router+src; lib: supabase-js/ssr, @vis.gl/react-google-maps; build pass |
 | 2. UI skeleton chat + map (mock) | ✅ Done | ChatPanel + MapPanel (fallback khi chưa có key), page 2-cột; build pass |
-| 3. Wire Supabase Realtime (chat) | ⬜ Blocked | cần Supabase project + key. Pipeline: /office-hours→/plan→build(feature-builder)→review(code-reviewer)→qa→ship |
+| 3. Wire Supabase Realtime (chat) | ✅ Done | migration 0001 (bảng messages+RLS+Realtime); useMessages hook (load+subscribe INSERT+send); useIdentity; ChatPanel realtime. Verify: build pass, dev 200, SELECT/INSERT/realtime OK |
 | 4. Map presence (location realtime) | ⬜ Blocked | cần Google Maps API key |
 
 ## Quyết định đang giữ
@@ -25,4 +25,6 @@
 - Chưa có Supabase/Maps key → scaffold + skeleton trước, cắm `.env.local` sau.
 
 ## Next action
-Cỗ máy + skeleton xong. Chờ user cung cấp Supabase project + key (và Google Maps key) → chạy phase 3 (chat realtime) qua pipeline. Có key thì: tạo bảng `messages` + RLS, đổi ChatPanel sang Supabase Realtime subscription; MapPanel sang Presence broadcast.
+Chat realtime ĐÃ chạy thật trên Supabase. Tiếp theo:
+- **Phase 4 (map presence)**: chờ Google Maps API key → đổi MapPanel sang Supabase Presence broadcast tọa độ.
+- **Nợ kỹ thuật**: bảng messages còn 1 tin test "hello from curl" (xóa trong Studio nếu muốn — REST không xóa được vì chưa có DELETE policy, đúng ý đồ demo). Khi thêm auth: siết RLS (insert chỉ authenticated, user_id = auth.uid()).

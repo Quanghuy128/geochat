@@ -12,7 +12,7 @@ export default function Home() {
         </p>
       </header>
       <div className="grid flex-1 grid-cols-1 overflow-hidden md:grid-cols-2">
-        <ChatPanel initial={MOCK_MESSAGES} />
+        <ChatPanel fallback={MOCK_MESSAGES} />
         <MapPanel locations={MOCK_LOCATIONS} />
       </div>
     </div>
