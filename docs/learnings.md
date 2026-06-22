@@ -21,8 +21,12 @@
 - [confidence: cao] Custom agents (.claude/agents/), commands (.claude/commands/), hook (.claude/settings.json), MCP (.mcp.json) **không nạp giữa session** nếu tạo sau khi Claude Code khởi động → cần restart. Sau restart: agent gọi qua Agent tool, command thành skill, MCP tool xuất hiện. **Bối cảnh**: dogfood pipeline auth phải mô phỏng bằng general-purpose subagent trước restart, sau restart thì feature-builder/code-reviewer dùng được thật.
 - [confidence: cao] Dogfood Maker≠Checker hiệu quả: Checker (subagent độc lập) bắt được điều Maker bỏ sót bằng cách tự đọc source lib, không tin báo cáo Maker. **Bối cảnh**: review auth tìm ra PKCE flow + middleware deprecation.
 
-## Map (Google Maps)
-_(chưa có — điền sau khi làm feature map)_
+## Map / Presence (Google Maps + Supabase Presence)
+- [confidence: cao] Supabase **Presence** cho vị trí live (channel.track payload), **bảng riêng** cho "vị trí cuối offline" — presence không persist khi mọi client rời. Merge thứ tự: dbLocations(load mount) → lastSeen(cache từ presence sync trong phiên) → presenceLocations(online). **Bối cảnh**: map-presence, finding Y2.
+- [confidence: cao] **BUG hay gặp**: object truyền vào dep array effect (vd `identity`, `coords`) tạo mới mỗi render → effect track/upsert chạy lại MỖI render = spam DB write + re-track presence. Fix: useMemo object + dep array dùng PRIMITIVE (`identity?.userId`, `coords?.lat`...). **Bối cảnh**: map-presence blocker B1 (Checker bắt, Maker đã tự trấn an là "an toàn" → đúng giá trị Maker≠Checker).
+- [confidence: cao] `channel.track()` phải gọi trong callback `subscribe((status)=>{ if(status==="SUBSCRIBED") track(latestPayloadRef.current) })` — track trước SUBSCRIBED bị Supabase bỏ qua. Dùng ref giữ payload mới nhất. **Bối cảnh**: finding Y3.
+- [confidence: cao] RLS cho UPSERT cần CẢ `insert` policy (with check) LẪN `update` policy (using + with check). Thiếu update → upsert lần 2 (row đã có) fail. Verify: anon upsert → 401. **Bối cảnh**: migration 0003.
+- [confidence: cao] `navigator.geolocation` chỉ ở client → guard `typeof navigator !== "undefined"` + `"use client"`, clearWatch trong cleanup. SSR build không vỡ. **Bối cảnh**: use-geolocation.
 
 ## Quy trình loop
 - [confidence: vừa] Hook `careful` đặt ở `.claude/settings.json` không tự nạp nếu file chưa tồn tại lúc session khởi động → cần `/hooks` hoặc restart. **Bối cảnh**: tạo hook 2026-06-22.

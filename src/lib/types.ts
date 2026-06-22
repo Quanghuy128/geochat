@@ -14,4 +14,6 @@ export type UserLocation = {
   lat: number;
   lng: number;
   updatedAt: string; // ISO
+  /** true = đang trong presence state (live); false/undefined = vị trí cuối từ bảng (offline). */
+  online?: boolean;
 };
