@@ -6,6 +6,8 @@ Bạn đang ở bước **qa** của pipeline GeoChat.
 
 Feature: **$ARGUMENTS**
 
+**Đọc test plan trước**: nếu có `docs/loops/<feature>-testplan.md` (do `/plan` tạo) → chạy đúng từng bước trong đó làm chuẩn nghiệm thu. Không có thì bám tiêu chí nghiệm thu trong STATE.
+
 Kiểm chứng hành vi thật (không chỉ đọc code):
 1. `npm run build` — phải pass (typecheck + lint).
 2. `npm run dev` (background) → chờ ready → verify trang 200 + không lỗi runtime trong log.

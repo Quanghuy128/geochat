@@ -33,3 +33,6 @@ next-env.d.ts
 
 # claude local
 .claude/settings.local.json
+
+# freeze marker (runtime)
+.claude/.freeze

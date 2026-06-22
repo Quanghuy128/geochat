@@ -13,4 +13,8 @@ Tạo plan kỹ thuật, KHÔNG code:
 4. **Edge case** + cách xử lý.
 5. **Tiêu chí nghiệm thu** (Checker sẽ kiểm chính xác cái này).
 
-Ghi plan vào `docs/loops/<feature>-STATE.md` (phần Plan). Gợi ý chạy `/build`.
+Ghi plan vào `docs/loops/<feature>-STATE.md` (phần Plan).
+
+**Test-plan handoff (bắt buộc)**: ngoài plan, ghi thêm file `docs/loops/<feature>-testplan.md` — danh sách bước test cụ thể mà `/qa` sẽ tự đọc và chạy. Mỗi bước: hành động + kết quả mong đợi (vd "anon INSERT messages → 401 RLS", "dev / → 200", "2 tab presence sync"). Đây là artifact handoff: plan → qa (mượn gstack plan-eng-review → qa).
+
+Gợi ý chạy `/build`.

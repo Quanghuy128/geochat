@@ -11,6 +11,16 @@
             "statusMessage": "careful: kiểm tra lệnh phá hủy"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/freeze.sh\"",
+            "statusMessage": "freeze: kiểm tra vùng đóng băng"
+          }
+        ]
       }
     ]
   }

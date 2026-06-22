@@ -37,13 +37,22 @@ App **chat realtime** + **map location realtime** (MapLibre GL + OpenStreetMap).
 - **STATE.md = trục sống**: mỗi feature có file phase tại `docs/loops/`. Đọc STATE → làm phase kế → ghi lại STATE.
 - **learnings.md**: tích lũy pattern + độ tin cậy sau mỗi feature.
 
-## Pipeline 1 feature
+## Pipeline 1 feature (cỗ máy auto-workflow kiểu gstack)
 
 ```
-/office-hours → làm rõ scope (6 câu hỏi)
-/plan         → architecture + data flow + edge case
-build         → feature-builder (maker)
-review        → code-reviewer (checker, độc lập)
-qa            → Playwright test live
-ship          → test + coverage + commit/PR
+THINK   /office-hours → làm rõ scope (6 câu hỏi)   [hoặc /autoplan: chạy + chỉ hỏi taste]
+PLAN    /plan         → architecture + data flow + edge case + TEST PLAN (file riêng)
+BUILD   /build        → feature-builder (maker)
+REVIEW  /review       → code-reviewer (checker độc lập)
+        /cso          → security-reviewer (OWASP/STRIDE) — khi đụng auth/RLS/secret
+QA      /qa           → test live, tự đọc testplan
+SHIP    /ship         → test + coverage + commit/PR
+REFLECT /canary       → giám sát sau ship   /retro + /learn → feed learnings.md
 ```
+
+**Guardrails**: `/careful` (hook chặn lệnh phá hủy) · `/freeze`+`/unfreeze`+`/guard` (giới hạn vùng sửa) · `/investigate` (debug root-cause, Iron Law: điều tra trước fix).
+**Tiện ích**: `/health` (dashboard chất lượng) · `/document-release` (đồng bộ docs) · `/learn` (quarantine→promote learnings).
+**Agents**: Maker = `feature-builder`; Checker (độc lập) = `code-reviewer`, `security-reviewer`.
+
+> Full workflow gstack + mapping: [docs/gstack-workflow.md](docs/gstack-workflow.md).
+> ⚠️ Skill/agent/hook mới cần restart hoặc `/hooks` để Claude Code nạp (không nạp giữa session).

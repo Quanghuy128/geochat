@@ -82,12 +82,14 @@ TypeScript (~79%) + Go Templates (~11%) + Shell. Runtime **Bun** (+ `bunfig.toml
 | Pipeline Think→...→Reflect | `/office-hours→/plan→/build→/review→/qa→/ship` | ✅ Là core subset. Thiếu Reflect (retro/canary) |
 | Maker ≠ Checker | feature-builder vs code-reviewer (subagent độc lập) | ✅ Có. Thiếu **cross-model checker** (codex) |
 | `/careful` | hook careful (.claude/settings.json) | ✅ Có |
-| `/freeze` `/guard` | ❌ chưa có | Nên thêm edit-boundary, nhất là khi thao tác Supabase shared |
-| Artifact handoff (plan → test plan → qa) | STATE.md per-feature | ⚠️ Có STATE nhưng chưa emit **test plan file** để qa tự nhặt |
-| `/autoplan` gate | ❌ chưa có | Chain plan review, chỉ escalate taste decision |
-| `/learn` + GBrain | learnings.md (có confidence) + auto-memory | ✅ Tương đương cơ bản. Thiếu quarantine→promote rule |
-| `/retro` `/health` `/canary` | ❌ chưa có | Đóng vòng Reflect, feed learnings.md |
-| `/cso` security | security-reviewer (kế hoạch, chưa làm) | ⚠️ Có ý định, chưa có skill |
+| `/freeze` `/guard` | ✅ ĐÃ LÀM (freeze.sh hook + /freeze /unfreeze /guard) | Done 2026-06-22 |
+| Artifact handoff (plan → test plan → qa) | ✅ ĐÃ LÀM (/plan emit testplan.md, /qa tự đọc) | Done |
+| `/autoplan` gate | ✅ ĐÃ LÀM (/autoplan, chỉ escalate taste) | Done |
+| `/learn` + GBrain | ✅ ĐÃ LÀM (/learn quarantine→promote trên learnings.md) | Done (local, không cross-machine) |
+| `/retro` `/health` `/canary` | ✅ ĐÃ LÀM (3 command) | Done |
+| `/cso` security | ✅ ĐÃ LÀM (security-reviewer agent + /cso) | Done |
+| `/investigate` | ✅ ĐÃ LÀM (Iron Law, auto freeze) | Done |
+| `/document-release` | ✅ ĐÃ LÀM | Done |
 
 **4 nâng cấp đòn bẩy cao nhất cho GeoChat:**
 1. **Artifact handoff**: `/plan` emit test-plan file → `/qa` tự đọc (như gstack plan-eng-review→qa).
