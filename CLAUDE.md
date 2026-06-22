@@ -2,6 +2,8 @@
 
 App **chat realtime** + **map location realtime** (MapLibre GL + OpenStreetMap). Mục tiêu cốt lõi: source code tự động hóa workflow để giảm tối đa thời gian code/maintain (Loop Engineering — xem [docs/PROJECT-CONTEXT.md](docs/PROJECT-CONTEXT.md)).
 
+> **Pattern tham chiếu**: cỗ máy GeoChat mượn từ gstack (Garry Tan). Capture đầy đủ workflow gstack + mapping sang GeoChat tại [docs/gstack-workflow.md](docs/gstack-workflow.md).
+
 ## Stack
 
 | Lớp | Công nghệ |
