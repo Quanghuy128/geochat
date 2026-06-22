@@ -1,13 +1,24 @@
 "use client";
 
 import { useMemo } from "react";
-import { APIProvider, Map, AdvancedMarker, Pin } from "@vis.gl/react-google-maps";
+import dynamic from "next/dynamic";
 import { useAuth } from "@/lib/use-auth";
 import { useGeolocation } from "@/lib/use-geolocation";
 import { usePresence } from "@/lib/use-presence";
 import type { UserLocation } from "@/lib/types";
 
 const HCMC_CENTER = { lat: 10.7769, lng: 106.7009 };
+
+// MapLibre dùng WebGL → client-only. Tải lazy không SSR để tránh lỗi `window`
+// khi Next render trên server.
+const MapCanvas = dynamic(() => import("./map-canvas").then((m) => m.MapCanvas), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full items-center justify-center bg-zinc-50 text-sm text-zinc-400 dark:bg-zinc-900">
+      Đang tải bản đồ…
+    </div>
+  ),
+});
 
 /** Câu trạng thái GPS hiển thị ở header. */
 function gpsStatusText(args: {
@@ -40,13 +51,11 @@ function gpsStatusText(args: {
 
 /**
  * Panel map. Tự lấy data từ Presence (live) + bảng locations (vị trí cuối).
- * - Có Google Maps key → render Map thật với AdvancedMarker.
- * - Chưa có key → fallback danh sách vị trí.
- * - Supabase chưa cấu hình → dùng `fallback` (mock) truyền từ ngoài.
+ * - Render bằng MapLibre GL + tiles demotiles MapLibre (free, KHÔNG cần key).
+ * - Supabase chưa cấu hình → dùng `fallback` (mock) truyền từ ngoài, map vẫn render.
  * online = đậm; offline = mờ (opacity-50).
  */
 export function MapPanel({ fallback = [] }: { fallback?: UserLocation[] }) {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const { user, configured, loading } = useAuth();
 
   // Memo hóa identity để giữ reference ổn định giữa các render — tránh
@@ -85,45 +94,7 @@ export function MapPanel({ fallback = [] }: { fallback?: UserLocation[] }) {
   });
 
   const subtitle = loading ? "Đang tải…" : status;
-
-  if (!apiKey) {
-    return (
-      <div className="flex h-full flex-col">
-        <header className="border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-          <h2 className="font-semibold">Bản đồ</h2>
-          <p className="text-xs text-zinc-500">
-            Chưa có Google Maps API key — danh sách vị trí. {subtitle}
-          </p>
-        </header>
-        <div className="flex flex-1 flex-col gap-2 bg-zinc-50 p-4 dark:bg-zinc-900">
-          {locations.length === 0 && (
-            <p className="text-sm text-zinc-500">Chưa có vị trí nào.</p>
-          )}
-          {locations.map((loc) => (
-            <div
-              key={loc.userId}
-              className={`flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-800 ${
-                loc.online ? "" : "opacity-50"
-              }`}
-            >
-              <span className="font-medium">
-                {loc.online ? "📍" : "📌"} {loc.userName}
-                {!loc.online && (
-                  <span className="ml-1 text-xs text-zinc-400">(offline)</span>
-                )}
-              </span>
-              <span className="text-xs text-zinc-500">
-                {loc.lat.toFixed(4)}, {loc.lng.toFixed(4)}
-              </span>
-            </div>
-          ))}
-          <p className="mt-auto text-center text-xs text-zinc-400">
-            Cắm key vào <code>.env.local</code> để xem bản đồ thật.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const center = coords ?? HCMC_CENTER;
 
   return (
     <div className="flex h-full flex-col">
@@ -132,31 +103,7 @@ export function MapPanel({ fallback = [] }: { fallback?: UserLocation[] }) {
         <p className="text-xs text-zinc-500">{subtitle}</p>
       </header>
       <div className="flex-1">
-        <APIProvider apiKey={apiKey}>
-          <Map
-            defaultCenter={coords ?? HCMC_CENTER}
-            defaultZoom={14}
-            mapId="geochat-map"
-            disableDefaultUI={false}
-            gestureHandling="greedy"
-          >
-            {locations.map((loc) => (
-              <AdvancedMarker
-                key={loc.userId}
-                position={{ lat: loc.lat, lng: loc.lng }}
-                title={`${loc.userName}${loc.online ? "" : " (offline)"}`}
-              >
-                <div className={loc.online ? "" : "opacity-50"}>
-                  <Pin
-                    background={loc.online ? "#2563eb" : "#9ca3af"}
-                    borderColor={loc.online ? "#1d4ed8" : "#6b7280"}
-                    glyphColor="#ffffff"
-                  />
-                </div>
-              </AdvancedMarker>
-            ))}
-          </Map>
-        </APIProvider>
+        <MapCanvas center={center} locations={locations} />
       </div>
     </div>
   );

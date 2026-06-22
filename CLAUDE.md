@@ -1,6 +1,6 @@
 # GeoChat — Realtime Chat & Map
 
-App **chat realtime** + **Google Map location realtime**. Mục tiêu cốt lõi: source code tự động hóa workflow để giảm tối đa thời gian code/maintain (Loop Engineering — xem [docs/PROJECT-CONTEXT.md](docs/PROJECT-CONTEXT.md)).
+App **chat realtime** + **map location realtime** (MapLibre GL + OpenStreetMap). Mục tiêu cốt lõi: source code tự động hóa workflow để giảm tối đa thời gian code/maintain (Loop Engineering — xem [docs/PROJECT-CONTEXT.md](docs/PROJECT-CONTEXT.md)).
 
 ## Stack
 
@@ -8,7 +8,7 @@ App **chat realtime** + **Google Map location realtime**. Mục tiêu cốt lõi
 |-----|-----------|
 | Framework | Next.js (App Router) + TypeScript |
 | Realtime + DB + Auth | Supabase (Postgres + Realtime + Presence + Auth + PostGIS) |
-| Map | Google Maps JS API qua `@vis.gl/react-google-maps` |
+| Map | MapLibre GL + OpenStreetMap (tiles demotiles MapLibre) qua `react-map-gl/maplibre` — free, KHÔNG cần API key |
 | UI | Tailwind CSS + shadcn/ui |
 | Test | Vitest (unit) + Playwright (e2e) |
 | CI | GitHub Actions |

@@ -27,6 +27,8 @@
 - [confidence: cao] `channel.track()` phải gọi trong callback `subscribe((status)=>{ if(status==="SUBSCRIBED") track(latestPayloadRef.current) })` — track trước SUBSCRIBED bị Supabase bỏ qua. Dùng ref giữ payload mới nhất. **Bối cảnh**: finding Y3.
 - [confidence: cao] RLS cho UPSERT cần CẢ `insert` policy (with check) LẪN `update` policy (using + with check). Thiếu update → upsert lần 2 (row đã có) fail. Verify: anon upsert → 401. **Bối cảnh**: migration 0003.
 - [confidence: cao] `navigator.geolocation` chỉ ở client → guard `typeof navigator !== "undefined"` + `"use client"`, clearWatch trong cleanup. SSR build không vỡ. **Bối cảnh**: use-geolocation.
+- [confidence: cao] **MapLibre + OSM = map free thật, KHÔNG cần key/thẻ** (khác Google Maps cần thẻ). Dùng `react-map-gl/maplibre` + `maplibre-gl`, style `https://demotiles.maplibre.org/style.json`. Phải import `maplibre-gl/dist/maplibre-gl.css` (thiếu → vỡ layout). MapLibre là WebGL client-only → tách component + `next/dynamic({ssr:false})`. **Bối cảnh**: đổi provider 2026-06-22 (commit sau ffd0b09). Lưu ý: demotiles là vector world style không-SLA, zoom cao ở VN chỉ ra biên giới — đổi tile có đường phố + SLA khi production.
+- [confidence: vừa] `react-map-gl` `initialViewState` là uncontrolled → chỉ set center lúc mount, không re-center khi coords đổi sau. Muốn đuổi theo GPS cần controlled Map + flyTo. **Bối cảnh**: nit review MapLibre.
 
 ## Quy trình loop
 - [confidence: vừa] Hook `careful` đặt ở `.claude/settings.json` không tự nạp nếu file chưa tồn tại lúc session khởi động → cần `/hooks` hoặc restart. **Bối cảnh**: tạo hook 2026-06-22.
