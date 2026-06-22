@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useIdentity } from "@/lib/identity";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/lib/use-auth";
 import { useMessages } from "@/lib/use-messages";
 import type { Message } from "@/lib/types";
 
@@ -12,12 +12,26 @@ function formatTime(iso: string): string {
   });
 }
 
+/** Tên hiển thị = phần email trước '@'. */
+function nameFromEmail(email: string | undefined): string {
+  if (!email) return "Bạn";
+  return email.split("@")[0];
+}
+
 /**
  * Panel chat realtime qua Supabase.
  * `fallback`: dùng khi Supabase chưa cấu hình key (chế độ mock, gửi tin chỉ local).
+ * Yêu cầu đăng nhập (auth) để gửi tin; chưa login → input disabled + CTA.
  */
 export function ChatPanel({ fallback }: { fallback: Message[] }) {
-  const identity = useIdentity();
+  const { user, loading: authLoading, configured } = useAuth();
+  const identity = useMemo(
+    () => ({
+      userId: user?.id ?? "",
+      userName: nameFromEmail(user?.email),
+    }),
+    [user?.id, user?.email],
+  );
   const { messages, ready, error, send } = useMessages(identity);
   const [draft, setDraft] = useState("");
   const [mockMessages, setMockMessages] = useState<Message[]>(fallback);
@@ -25,13 +39,17 @@ export function ChatPanel({ fallback }: { fallback: Message[] }) {
 
   const list = ready ? messages : mockMessages;
 
+  // Khi nối Supabase: cần đăng nhập mới gửi. Chế độ mock: cho gửi tự do.
+  const canSend = ready ? Boolean(user) : true;
+  const showLoginCta = configured && !authLoading && !user;
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [list.length]);
 
   async function handleSend() {
     const body = draft.trim();
-    if (!body) return;
+    if (!body || !canSend) return;
     setDraft("");
 
     if (ready) {
@@ -57,7 +75,9 @@ export function ChatPanel({ fallback }: { fallback: Message[] }) {
         <h2 className="font-semibold">Chat</h2>
         <p className="text-xs text-zinc-500">
           {ready
-            ? `Realtime (Supabase) · bạn là ${identity.userName || "…"}`
+            ? user
+              ? `Realtime (Supabase) · bạn là ${identity.userName}`
+              : "Realtime (Supabase) · đăng nhập để gửi tin"
             : "Mock — chưa nối Supabase"}
         </p>
         {error && <p className="text-xs text-red-500">Lỗi: {error}</p>}
@@ -65,7 +85,7 @@ export function ChatPanel({ fallback }: { fallback: Message[] }) {
 
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
         {list.map((m) => {
-          const mine = m.userId === identity.userId;
+          const mine = Boolean(user) && m.userId === user?.id;
           return (
             <div
               key={m.id}
@@ -89,17 +109,25 @@ export function ChatPanel({ fallback }: { fallback: Message[] }) {
         <div ref={bottomRef} />
       </div>
 
+      {showLoginCta && (
+        <p className="border-t border-zinc-200 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-800">
+          Đăng nhập (góc trên) để gửi tin nhắn.
+        </p>
+      )}
+
       <div className="flex gap-2 border-t border-zinc-200 p-3 dark:border-zinc-800">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Nhập tin nhắn…"
-          className="flex-1 rounded-full border border-zinc-300 bg-transparent px-4 py-2 text-sm outline-none focus:border-blue-500 dark:border-zinc-700"
+          placeholder={canSend ? "Nhập tin nhắn…" : "Đăng nhập để chat…"}
+          disabled={!canSend}
+          className="flex-1 rounded-full border border-zinc-300 bg-transparent px-4 py-2 text-sm outline-none focus:border-blue-500 disabled:opacity-50 dark:border-zinc-700"
         />
         <button
           onClick={handleSend}
-          className="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          disabled={!canSend}
+          className="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
           Gửi
         </button>

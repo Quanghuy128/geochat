@@ -12,6 +12,15 @@
 - [confidence: cao] Phải `supabase.removeChannel(channel)` trong cleanup useEffect, nếu không leak subscription. **Bối cảnh**: review checklist.
 - [confidence: vừa] DELETE qua REST trả 204 nhưng 0 rows nếu thiếu RLS DELETE policy (im lặng, không báo lỗi). Test xóa phải verify số rows thật. **Bối cảnh**: tin test không xóa được.
 
+## Auth (Supabase)
+- [confidence: cao] `@supabase/ssr` (>=0.x) **hardcode `flowType: "pkce"`** sau spread options → không override được. Browser client lưu code-verifier vào cookie; callback route phải `exchangeCodeForSession(code)`. Magic link email dùng template `{{ .ConfirmationURL }}` mới ra `?code=`. Để chắc, callback nên chịu CẢ `token_hash`+`type` (verifyOtp) lẫn `code`. **Bối cảnh**: feature auth, Checker đọc source xác nhận.
+- [confidence: cao] Next 16: file `middleware.ts` deprecated → đổi sang `proxy.ts` export hàm `proxy`. Build vẫn chạy với middleware nhưng có warning. **Bối cảnh**: review finding #2.
+- [confidence: cao] RLS INSERT siết: `to authenticated with check (auth.uid()::text = user_id ...)`. Cột user_id là text nên ép `auth.uid()::text`. Verify: anon INSERT → 401 "violates row-level security policy". **Bối cảnh**: migration 0002.
+
+## Quy trình loop (cập nhật)
+- [confidence: cao] Custom agents (.claude/agents/), commands (.claude/commands/), hook (.claude/settings.json), MCP (.mcp.json) **không nạp giữa session** nếu tạo sau khi Claude Code khởi động → cần restart. Sau restart: agent gọi qua Agent tool, command thành skill, MCP tool xuất hiện. **Bối cảnh**: dogfood pipeline auth phải mô phỏng bằng general-purpose subagent trước restart, sau restart thì feature-builder/code-reviewer dùng được thật.
+- [confidence: cao] Dogfood Maker≠Checker hiệu quả: Checker (subagent độc lập) bắt được điều Maker bỏ sót bằng cách tự đọc source lib, không tin báo cáo Maker. **Bối cảnh**: review auth tìm ra PKCE flow + middleware deprecation.
+
 ## Map (Google Maps)
 _(chưa có — điền sau khi làm feature map)_
 
