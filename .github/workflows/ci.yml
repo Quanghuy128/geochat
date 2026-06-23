@@ -47,12 +47,14 @@ jobs:
       #   run: npm test
 
       # Thông báo kết quả vào Discord (cả pass lẫn fail). Skip êm nếu chưa set secret.
+      # LƯU Ý: if của step KHÔNG đọc được env định nghĩa trong chính step đó → check rỗng phải nằm trong run.
       - name: Notify Discord
-        if: always() && env.DISCORD_WEBHOOK_URL != ''
+        if: always()
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           STATUS: ${{ job.status }}
         run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then echo "DISCORD_WEBHOOK_URL chưa set — bỏ qua."; exit 0; fi
           if [ "$STATUS" = "success" ]; then COLOR=3066993; ICON="✅"; else COLOR=15158332; ICON="❌"; fi
           curl -fsS -X POST "$DISCORD_WEBHOOK_URL" \
             -H "Content-Type: application/json" \

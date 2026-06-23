@@ -46,13 +46,14 @@ jobs:
         run: supabase db push
 
       # Báo Discord khi migration đã áp lên DB thật (sự kiện nhạy cảm — cần biết ngay).
-      # Skip êm nếu chưa set secret.
+      # Skip êm nếu chưa set secret. (if step không đọc được env step → check rỗng trong run.)
       - name: Notify Discord
-        if: always() && env.DISCORD_WEBHOOK_URL != ''
+        if: always()
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           STATUS: ${{ job.status }}
         run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then echo "DISCORD_WEBHOOK_URL chưa set — bỏ qua."; exit 0; fi
           if [ "$STATUS" = "success" ]; then COLOR=3066993; ICON="🗄️✅"; else COLOR=15158332; ICON="🗄️❌"; fi
           curl -fsS -X POST "$DISCORD_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
