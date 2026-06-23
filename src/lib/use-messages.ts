@@ -45,11 +45,15 @@ export function useMessages(identity: {
 }): UseMessages {
   const [messages, setMessages] = useState<Message[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const supabaseRef = useRef(createClient());
-  const ready = supabaseRef.current !== null;
+  const [ready, setReady] = useState(false);
+  // Lazy-init: createClient() chỉ chạy 1 lần. KHÔNG đọc .current khi render
+  // (vi phạm react-hooks/refs) — `ready` được set trong effect bên dưới.
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
+  if (supabaseRef.current === null) supabaseRef.current = createClient();
 
   useEffect(() => {
     const supabase = supabaseRef.current;
+    setReady(supabase !== null);
     if (!supabase) return;
 
     let cancelled = false;

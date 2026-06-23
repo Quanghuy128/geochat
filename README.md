@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GeoChat
 
-## Getting Started
+Chat realtime + map location realtime (MapLibre GL + OpenStreetMap) trên Next.js + Supabase.
+Xem [CLAUDE.md](CLAUDE.md) cho stack + workflow, [docs/PROJECT-CONTEXT.md](docs/PROJECT-CONTEXT.md) cho bối cảnh.
 
-First, run the development server:
+## Local dev
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local   # rồi điền NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY
+npm install
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+App chạy được ở "chế độ mock" khi chưa có key Supabase (UI không crash).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Kiểm tra trước khi push
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint && npx tsc --noEmit && npm run build
+```
 
-## Learn More
+Đây đúng là 3 bước CI chạy trên mỗi PR (xem [.github/workflows/ci.yml](.github/workflows/ci.yml)).
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy (Vercel)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Hosting trên **Vercel** với Git integration native: mỗi PR có preview URL, merge vào `master` → deploy production.
 
-## Deploy on Vercel
+### Cài đặt một lần (Vercel dashboard)
+1. **Import repo** vào Vercel → framework tự nhận là Next.js (cấu hình build ở [vercel.json](vercel.json)).
+2. **Environment Variables** (cho cả Production + Preview):
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   (Cùng 2 biến trong `.env.example`. Cả hai là anon key public — an toàn nằm trong client bundle.)
+3. **Production branch** = `master`.
+4. **Supabase Auth redirect**: vào Supabase → Authentication → URL Configuration, thêm URL production
+   + preview của Vercel vào *Redirect URLs* (magic-link callback ở [src/app/auth/callback/route.ts](src/app/auth/callback/route.ts)).
+   Thiếu bước này → đăng nhập trên domain deploy bị hỏng redirect.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## CI/CD
+
+| Workflow | Trigger | Việc làm |
+|----------|---------|----------|
+| [ci.yml](.github/workflows/ci.yml) | mọi PR + push `master` | lint → typecheck → build |
+| [db-migrate.yml](.github/workflows/db-migrate.yml) | push `master`, chỉ khi `supabase/migrations/**` đổi | áp migration Supabase (có duyệt tay) |
+
+### Migration flow (CÓ KIỂM SOÁT — bài học DB safety)
+
+Áp SQL lên DB shared phải qua cổng người duyệt. Luồng:
+
+```
+sửa supabase/migrations/000N_*.sql → PR (CI gate) → merge master
+   → workflow db-migrate.yml DỪNG chờ duyệt (environment production-db)
+   → reviewer đọc DANH SÁCH migration từ bước `db push --dry-run` trong log → bấm Approve
+   → migration được áp
+```
+
+- `db push --dry-run` **liệt kê các file migration** sẽ chạy — KHÔNG phải diff schema thật.
+  Cơ chế an toàn chính là **cổng duyệt tay** `production-db`, không phải output dry-run.
+- Workflow **không bao giờ** chạy trên PR — chỉ sau merge.
+- Migration phải **reversible** (kèm comment rollback) + **idempotent** (`if exists` / `if not exists`) — giữ đúng quy ước file 0001–0003.
+- TUYỆT ĐỐI không `DROP TABLE` / `TRUNCATE` / `DELETE` không `WHERE` trên DB thật.
+
+#### ⚠️ Reconcile migration history (BẮT BUỘC trước lần `db push` đầu)
+
+Migration 0001–0003 vốn được **paste tay** vào SQL Editor, nên bảng lịch sử migration của CLI
+(`supabase_migrations.schema_migrations`) đang rỗng. Nếu bật workflow ngay, `db push` đầu tiên sẽ
+**áp lại cả 3** lên DB thật. Cả 3 idempotent nên không phá dữ liệu, nhưng vẫn vi phạm nguyên tắc
+"không chạy SQL chưa review lên DB shared". Baseline trước:
+
+```bash
+supabase link --project-ref <project-ref>
+# Đánh dấu 3 migration đã áp sẵn (KHÔNG chạy lại SQL):
+supabase migration repair --status applied 0001 0002 0003
+supabase db push --dry-run    # phải hiện "no migrations to apply"
+```
+
+Sau bước này, workflow chỉ áp migration MỚI thêm sau đó.
+
+### Cài đặt một lần (GitHub dashboard)
+1. **Settings → Secrets and variables → Actions** — thêm 3 secret:
+   - `SUPABASE_ACCESS_TOKEN` — personal access token (Supabase → Account → Access Tokens)
+   - `SUPABASE_PROJECT_REF` — project ref (Supabase → Project Settings → General)
+   - `SUPABASE_DB_PASSWORD` — mật khẩu Postgres của project
+2. **Settings → Environments** — tạo environment `production-db`, bật **Required reviewers** (thêm ít nhất 1 người).
+3. Sửa `project_id` trong [supabase/config.toml](supabase/config.toml) khớp với `SUPABASE_PROJECT_REF`.
+
+> Test/lint hôm nay chỉ có ESLint. Vitest + Playwright đã có trong kế hoạch (xem CLAUDE.md) —
+> khi cài, bỏ comment bước `Test` trong [ci.yml](.github/workflows/ci.yml).
