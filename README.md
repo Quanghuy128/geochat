@@ -105,7 +105,6 @@ Cả `ci.yml` và `db-migrate.yml` có bước `Notify Discord` (gửi embed qua
 
 Bước notify tự **skip êm** nếu chưa set secret (không làm đỏ CI). Báo cả pass lẫn fail; migration báo riêng vì đã áp lên DB thật.
 
-### Vercel deploy status
-Cài qua **Vercel Marketplace** (không cần code):
-- Vercel dashboard → **Integrations → Browse Marketplace** → tìm **Discord** → **Add Integration** → dán webhook URL (dùng lại webhook trên hoặc tạo channel riêng).
-- Vercel sẽ tự bắn thông báo khi deploy production/preview success/error.
+> **Vercel deploy status?** Vercel KHÔNG có integration Discord (chỉ Slack), và Account Webhook
+> cần tier Pro + payload không khớp format Discord. Vì deploy Vercel gần như luôn thành công khi
+> CI xanh, ta dựa vào thông báo GitHub Actions ở trên là đủ — không gắn Vercel→Discord riêng.
