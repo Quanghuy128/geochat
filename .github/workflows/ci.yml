@@ -20,6 +20,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Mốc thời gian bắt đầu để tính thời lượng build cho thông báo Discord.
+      - name: Mark start time
+        run: echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -48,27 +52,60 @@ jobs:
 
       # Thông báo kết quả vào Discord (cả pass lẫn fail). Skip êm nếu chưa set secret.
       # LƯU Ý: if của step KHÔNG đọc được env định nghĩa trong chính step đó → check rỗng phải nằm trong run.
+      # Dùng jq build JSON (tự escape commit message có dấu nháy/xuống dòng — heredoc sẽ vỡ).
       - name: Notify Discord
         if: always()
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           STATUS: ${{ job.status }}
+          REPO: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+          SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          EVENT: ${{ github.event_name }}
+          ACTOR: ${{ github.actor }}
+          # Nhánh nguồn thật: head_ref khi là PR, ref_name khi push.
+          SRC_BRANCH: ${{ github.head_ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           if [ -z "$DISCORD_WEBHOOK_URL" ]; then echo "DISCORD_WEBHOOK_URL chưa set — bỏ qua."; exit 0; fi
           if [ "$STATUS" = "success" ]; then COLOR=3066993; ICON="✅"; else COLOR=15158332; ICON="❌"; fi
-          curl -fsS -X POST "$DISCORD_WEBHOOK_URL" \
-            -H "Content-Type: application/json" \
-            -d @- <<JSON
-          {
-            "embeds": [{
-              "title": "$ICON CI — ${STATUS}",
-              "color": ${COLOR},
-              "fields": [
-                { "name": "Repo", "value": "${{ github.repository }}", "inline": true },
-                { "name": "Branch", "value": "${{ github.ref_name }}", "inline": true },
-                { "name": "Commit", "value": "[\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})", "inline": false }
+
+          # Commit message (dòng đầu) + tác giả, lấy bằng git (an toàn cho mọi event).
+          COMMIT_MSG="$(git log -1 --pretty=%s)"
+          COMMIT_AUTHOR="$(git log -1 --pretty=%an)"
+          SHORT_SHA="${SHA:0:7}"
+          DURATION=$(( $(date +%s) - ${JOB_START:-$(date +%s)} ))
+          TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          # Context line: phân biệt PR vs push, kèm link bấm được.
+          if [ "$EVENT" = "pull_request" ]; then
+            CONTEXT="PR [#${PR_NUMBER}](${SERVER_URL}/${REPO}/pull/${PR_NUMBER}) · nhánh \`${SRC_BRANCH}\`"
+          else
+            CONTEXT="push · nhánh \`${SRC_BRANCH}\`"
+          fi
+          LINKS="[Run](${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}) · [Commit](${SERVER_URL}/${REPO}/commit/${SHA})"
+
+          jq -n \
+            --arg title "$ICON CI — $STATUS" \
+            --argjson color "$COLOR" \
+            --arg run_url "${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}" \
+            --arg repo "$REPO" \
+            --arg context "$CONTEXT" \
+            --arg commit "\`$SHORT_SHA\` $COMMIT_MSG" \
+            --arg author "$COMMIT_AUTHOR (trigger: $ACTOR)" \
+            --arg links "$LINKS" \
+            --arg footer "Thời lượng ${DURATION}s" \
+            --arg ts "$TS" \
+            '{embeds:[{
+              title:$title, color:$color, url:$run_url, timestamp:$ts,
+              fields:[
+                {name:"Repo", value:$repo, inline:true},
+                {name:"Nguồn", value:$context, inline:true},
+                {name:"Commit", value:$commit, inline:false},
+                {name:"Tác giả", value:$author, inline:true},
+                {name:"Liên kết", value:$links, inline:true}
               ],
-              "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }]
-          }
-          JSON
+              footer:{text:$footer}
+            }]}' \
+          | curl -fsS -X POST "$DISCORD_WEBHOOK_URL" -H "Content-Type: application/json" -d @-
