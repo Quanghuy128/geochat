@@ -1,0 +1,8 @@
+# Cấu hình tối thiểu cho Supabase CLI (link + db push trong workflow db-migrate.yml).
+# project_id = project ref của Supabase (Settings > General). Khớp với secret SUPABASE_PROJECT_REF.
+# THAY "your-project-ref" bằng ref thật trước khi chạy migration workflow.
+project_id = "your-project-ref"
+
+[db]
+# Postgres major version của project (Supabase mặc định 15). Đổi nếu project khác.
+major_version = 15

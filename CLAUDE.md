@@ -13,7 +13,8 @@ App **chat realtime** + **map location realtime** (MapLibre GL + OpenStreetMap).
 | Map | MapLibre GL + OpenStreetMap (tiles demotiles MapLibre) qua `react-map-gl/maplibre` — free, KHÔNG cần API key |
 | UI | Tailwind CSS + shadcn/ui |
 | Test | Vitest (unit) + Playwright (e2e) |
-| CI | GitHub Actions |
+| CI | GitHub Actions (lint + typecheck + build) — xem `.github/workflows/` |
+| Deploy | Vercel (preview/PR + prod trên `master`). Migration qua Supabase CLI có duyệt tay — xem [README.md](README.md#cicd) |
 | Package manager | npm (Bun là tùy chọn, khớp gstack nhưng chưa cài) |
 
 - **Chat realtime** = Supabase Realtime (Postgres changes trên bảng messages).

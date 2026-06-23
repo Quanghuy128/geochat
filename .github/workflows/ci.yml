@@ -1,0 +1,47 @@
+name: CI
+
+# Cổng chất lượng cho mọi PR + push lên master (khớp stage "test + coverage" của /ship).
+# Hôm nay chỉ có lint thật + typecheck + build; khi cài Vitest/Playwright thì bỏ comment bước test.
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+# Hủy run cũ khi có commit mới trên cùng ref (tiết kiệm CI).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint · Typecheck · Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+        env:
+          # Placeholder để build không fail khi collect page data.
+          # Đây là anon key public — KHÔNG bí mật. Giá trị thật cấu hình ở Vercel.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+
+      # TODO: bật khi cài Vitest/Playwright (xem CLAUDE.md — stack Test).
+      # - name: Test
+      #   run: npm test

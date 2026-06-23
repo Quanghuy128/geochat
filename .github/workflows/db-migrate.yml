@@ -1,0 +1,40 @@
+name: DB Migrate
+
+# Áp migration Supabase lên DB thật — CÓ KIỂM SOÁT (bài học DB incident, xem CLAUDE.md).
+# An toàn theo tầng:
+#   1. Chỉ chạy sau khi đã merge vào master (KHÔNG chạy trên PR).
+#   2. Chỉ chạy khi có file migration thay đổi.
+#   3. Gắn environment `production-db` (yêu cầu reviewer duyệt tay) → người bấm Approve trước khi SQL chạy.
+#   4. `db push --dry-run` in diff ra log để reviewer đọc trước khi áp.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "supabase/migrations/**"
+
+jobs:
+  migrate:
+    name: Push migrations (gated)
+    runs-on: ubuntu-latest
+    # Environment bảo vệ: cấu hình required reviewer ở GitHub > Settings > Environments.
+    environment: production-db
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link project
+        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+
+      - name: Dry-run (in diff SQL sẽ áp — reviewer đọc trước khi duyệt)
+        run: supabase db push --dry-run
+
+      - name: Apply migrations
+        run: supabase db push
