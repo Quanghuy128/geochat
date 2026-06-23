@@ -91,3 +91,21 @@ Sau bước này, workflow chỉ áp migration MỚI thêm sau đó.
 
 > Test/lint hôm nay chỉ có ESLint. Vitest + Playwright đã có trong kế hoạch (xem CLAUDE.md) —
 > khi cài, bỏ comment bước `Test` trong [ci.yml](.github/workflows/ci.yml).
+
+---
+
+## Thông báo Discord
+
+Status deploy/CI đẩy vào Discord từ 2 nguồn:
+
+### GitHub Actions (CI + migration)
+Cả `ci.yml` và `db-migrate.yml` có bước `Notify Discord` (gửi embed qua webhook). Cài:
+1. Discord: chuột phải channel → **Edit Channel → Integrations → Webhooks → New Webhook** → **Copy Webhook URL**.
+2. GitHub: **Settings → Secrets and variables → Actions** → thêm secret `DISCORD_WEBHOOK_URL` = URL vừa copy.
+
+Bước notify tự **skip êm** nếu chưa set secret (không làm đỏ CI). Báo cả pass lẫn fail; migration báo riêng vì đã áp lên DB thật.
+
+### Vercel deploy status
+Cài qua **Vercel Marketplace** (không cần code):
+- Vercel dashboard → **Integrations → Browse Marketplace** → tìm **Discord** → **Add Integration** → dán webhook URL (dùng lại webhook trên hoặc tạo channel riêng).
+- Vercel sẽ tự bắn thông báo khi deploy production/preview success/error.
