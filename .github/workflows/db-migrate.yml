@@ -5,7 +5,13 @@ name: DB Migrate
 #   1. Chỉ chạy sau khi đã merge vào master (KHÔNG chạy trên PR).
 #   2. Chỉ chạy khi có file migration thay đổi.
 #   3. Gắn environment `production-db` (yêu cầu reviewer duyệt tay) → người bấm Approve trước khi SQL chạy.
-#   4. `db push --dry-run` in diff ra log để reviewer đọc trước khi áp.
+#   4. `db push --dry-run` LIỆT KÊ các migration file sẽ áp (không phải diff schema thật)
+#      → reviewer đọc danh sách + tự đối chiếu trước khi duyệt.
+#
+# ⚠️ TRƯỚC LẦN CHẠY ĐẦU: các migration 0001–0003 vốn được paste tay vào SQL Editor,
+#    nên bảng lịch sử migration của CLI rỗng → `db push` đầu tiên sẽ áp LẠI cả 3 lên DB thật.
+#    Cả 3 idempotent (if exists / if not exists) nên không phá dữ liệu, NHƯNG vẫn phải baseline
+#    trước (xem README mục "Reconcile migration history") rồi mới bật workflow này.
 
 on:
   push:
@@ -33,7 +39,7 @@ jobs:
       - name: Link project
         run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
 
-      - name: Dry-run (in diff SQL sẽ áp — reviewer đọc trước khi duyệt)
+      - name: Dry-run (liệt kê migration sẽ áp — reviewer đọc trước khi duyệt)
         run: supabase db push --dry-run
 
       - name: Apply migrations

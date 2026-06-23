@@ -55,13 +55,31 @@ Hosting trên **Vercel** với Git integration native: mỗi PR có preview URL,
 ```
 sửa supabase/migrations/000N_*.sql → PR (CI gate) → merge master
    → workflow db-migrate.yml DỪNG chờ duyệt (environment production-db)
-   → reviewer đọc diff từ bước `db push --dry-run` trong log → bấm Approve
+   → reviewer đọc DANH SÁCH migration từ bước `db push --dry-run` trong log → bấm Approve
    → migration được áp
 ```
 
+- `db push --dry-run` **liệt kê các file migration** sẽ chạy — KHÔNG phải diff schema thật.
+  Cơ chế an toàn chính là **cổng duyệt tay** `production-db`, không phải output dry-run.
 - Workflow **không bao giờ** chạy trên PR — chỉ sau merge.
 - Migration phải **reversible** (kèm comment rollback) + **idempotent** (`if exists` / `if not exists`) — giữ đúng quy ước file 0001–0003.
 - TUYỆT ĐỐI không `DROP TABLE` / `TRUNCATE` / `DELETE` không `WHERE` trên DB thật.
+
+#### ⚠️ Reconcile migration history (BẮT BUỘC trước lần `db push` đầu)
+
+Migration 0001–0003 vốn được **paste tay** vào SQL Editor, nên bảng lịch sử migration của CLI
+(`supabase_migrations.schema_migrations`) đang rỗng. Nếu bật workflow ngay, `db push` đầu tiên sẽ
+**áp lại cả 3** lên DB thật. Cả 3 idempotent nên không phá dữ liệu, nhưng vẫn vi phạm nguyên tắc
+"không chạy SQL chưa review lên DB shared". Baseline trước:
+
+```bash
+supabase link --project-ref <project-ref>
+# Đánh dấu 3 migration đã áp sẵn (KHÔNG chạy lại SQL):
+supabase migration repair --status applied 0001 0002 0003
+supabase db push --dry-run    # phải hiện "no migrations to apply"
+```
+
+Sau bước này, workflow chỉ áp migration MỚI thêm sau đó.
 
 ### Cài đặt một lần (GitHub dashboard)
 1. **Settings → Secrets and variables → Actions** — thêm 3 secret:
