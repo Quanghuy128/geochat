@@ -45,3 +45,28 @@ jobs:
       # TODO: bật khi cài Vitest/Playwright (xem CLAUDE.md — stack Test).
       # - name: Test
       #   run: npm test
+
+      # Thông báo kết quả vào Discord (cả pass lẫn fail). Skip êm nếu chưa set secret.
+      - name: Notify Discord
+        if: always() && env.DISCORD_WEBHOOK_URL != ''
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          STATUS: ${{ job.status }}
+        run: |
+          if [ "$STATUS" = "success" ]; then COLOR=3066993; ICON="✅"; else COLOR=15158332; ICON="❌"; fi
+          curl -fsS -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d @- <<JSON
+          {
+            "embeds": [{
+              "title": "$ICON CI — ${STATUS}",
+              "color": ${COLOR},
+              "fields": [
+                { "name": "Repo", "value": "${{ github.repository }}", "inline": true },
+                { "name": "Branch", "value": "${{ github.ref_name }}", "inline": true },
+                { "name": "Commit", "value": "[\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})", "inline": false }
+              ],
+              "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }]
+          }
+          JSON
