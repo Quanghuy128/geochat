@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { HeaderAuth } from "@/components/header-auth";
-import { ChatPanel } from "@/components/chat-panel";
+import { ChatTabs, type ChatTab } from "@/components/chat-tabs";
 import { MapPanel } from "@/components/map-panel";
 import { FriendsButton } from "@/components/friends-button";
 import { FriendsPanel } from "@/components/friends-panel";
@@ -17,6 +17,20 @@ export default function Home() {
   // 2 channel Realtime trùng lặp subscribe cùng dữ liệu (xem friends-STATE.md > PLAN > mục 3.5).
   const identity = user ? { userId: user.id } : null;
   const friendRequests = useFriendRequests(identity);
+
+  // DM tab state — lifted lên page.tsx vì FriendsPanel ("Nhắn tin" trigger) cần điều
+  // khiển ChatTabs từ ngoài (đóng panel + chuyển tab + mở thread), theo dm-chat-STATE.md
+  // > PLAN > mục 1 + 5.
+  const [activeChatTab, setActiveChatTab] = useState<ChatTab>("global");
+  const [pendingOpenFriendId, setPendingOpenFriendId] = useState<string | null>(null);
+  const [pendingOpenFriendUsername, setPendingOpenFriendUsername] = useState<string>("");
+
+  function handleMessageFriend(friendId: string, friendUsername: string) {
+    setActiveChatTab("dm");
+    setPendingOpenFriendId(friendId);
+    setPendingOpenFriendUsername(friendUsername);
+    setFriendsOpen(false);
+  }
 
   return (
     <div className="flex h-screen flex-col">
@@ -38,13 +52,21 @@ export default function Home() {
         </div>
       </header>
       <div className="grid flex-1 grid-cols-1 overflow-hidden md:grid-cols-2">
-        <ChatPanel fallback={MOCK_MESSAGES} />
+        <ChatTabs
+          fallback={MOCK_MESSAGES}
+          activeTab={activeChatTab}
+          onTabChange={setActiveChatTab}
+          pendingOpenFriendId={pendingOpenFriendId}
+          pendingOpenFriendUsername={pendingOpenFriendUsername}
+          onConsumedPendingOpen={() => setPendingOpenFriendId(null)}
+        />
         <MapPanel fallback={MOCK_LOCATIONS} />
       </div>
       <FriendsPanel
         open={friendsOpen}
         onOpenChange={setFriendsOpen}
         friendRequests={friendRequests}
+        onMessageFriend={handleMessageFriend}
       />
     </div>
   );

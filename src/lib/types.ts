@@ -46,3 +46,26 @@ export type Friend = {
   username: string;
   requestId: string;
 };
+
+/**
+ * 1 cuộc trò chuyện 1-1 (DM) — hook `useDmConversations` đã join username đối phương
+ * + tin nhắn cuối, component không phải tự join.
+ */
+export type DmConversation = {
+  id: string;
+  peerId: string;
+  peerUsername: string;
+  lastMessageBody: string | null;
+  /** ISO — fallback = conversation.created_at nếu chưa có tin nào. */
+  lastMessageAt: string;
+  lastMessageMine: boolean;
+};
+
+/** 1 tin nhắn DM — row bảng `dm_messages`. */
+export type DmMessage = {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  body: string;
+  createdAt: string; // ISO
+};

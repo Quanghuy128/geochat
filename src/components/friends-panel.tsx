@@ -6,6 +6,7 @@ import { useFriends } from "@/lib/use-friends";
 import type { UseFriendRequests } from "@/lib/use-friend-requests";
 import { useSendFriendRequest } from "@/lib/use-send-friend-request";
 import type { Friend, FriendRequest } from "@/lib/types";
+import { EmptyState, ErrorState, SkeletonRows } from "@/components/ui/states";
 
 type Tab = "friends" | "requests";
 
@@ -14,6 +15,12 @@ interface FriendsPanelProps {
   onOpenChange: (open: boolean) => void;
   /** Mount ở page.tsx (cấp cao hơn) — truyền xuống để tránh subscribe 2 channel trùng lặp. */
   friendRequests: UseFriendRequests;
+  /**
+   * Gọi khi user tap "Nhắn tin" trên 1 FriendRow — page.tsx chịu trách nhiệm đóng
+   * panel này + chuyển ChatTabs sang "Tin nhắn" + mở/tạo conversation với friendId đó
+   * (xem dm-chat-STATE.md > PLAN > mục 1 + design doc mục 3.12).
+   */
+  onMessageFriend: (friendId: string, friendUsername: string) => void;
 }
 
 /**
@@ -21,7 +28,12 @@ interface FriendsPanelProps {
  * KHÔNG dùng native <dialog> (khác AuthModal) — đây là drawer overlay với backdrop riêng,
  * vì cần giữ Chat/Map nhìn thấy phía sau trên desktop (xem friends-design.md > Open Question #1).
  */
-export function FriendsPanel({ open, onOpenChange, friendRequests }: FriendsPanelProps) {
+export function FriendsPanel({
+  open,
+  onOpenChange,
+  friendRequests,
+  onMessageFriend,
+}: FriendsPanelProps) {
   const { user, loading: authLoading } = useAuth();
   const [tab, setTab] = useState<Tab>("friends");
   const panelRef = useRef<HTMLDivElement>(null);
@@ -101,6 +113,7 @@ export function FriendsPanel({ open, onOpenChange, friendRequests }: FriendsPane
                   friendsHook={friendsHook}
                   sendFriendRequest={sendFriendRequest}
                   friendRequests={friendRequests}
+                  onMessageFriend={onMessageFriend}
                 />
               ) : (
                 <RequestsTab friendRequests={friendRequests} />
@@ -142,10 +155,12 @@ function FriendsTab({
   friendsHook,
   sendFriendRequest,
   friendRequests,
+  onMessageFriend,
 }: {
   friendsHook: ReturnType<typeof useFriends>;
   sendFriendRequest: ReturnType<typeof useSendFriendRequest>;
   friendRequests: UseFriendRequests;
+  onMessageFriend: (friendId: string, friendUsername: string) => void;
 }) {
   const { friends, loading, error, refetch, unfriend } = friendsHook;
   const [showAddForm, setShowAddForm] = useState(false);
@@ -197,7 +212,12 @@ function FriendsTab({
       ) : (
         <div className="flex flex-col gap-2">
           {friends.map((f) => (
-            <FriendRow key={f.requestId} friend={f} onUnfriendConfirm={unfriend} />
+            <FriendRow
+              key={f.requestId}
+              friend={f}
+              onUnfriendConfirm={unfriend}
+              onMessage={onMessageFriend}
+            />
           ))}
         </div>
       )}
@@ -273,9 +293,11 @@ function AddFriendForm({
 function FriendRow({
   friend,
   onUnfriendConfirm,
+  onMessage,
 }: {
   friend: Friend;
   onUnfriendConfirm: (requestId: string) => Promise<{ error: string | null }>;
+  onMessage: (friendId: string, friendUsername: string) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [unfriending, setUnfriending] = useState(false);
@@ -300,13 +322,21 @@ function FriendRow({
           @{friend.username}
         </span>
         {!confirming && (
-          <button
-            onClick={() => setConfirming(true)}
-            className="rounded-full px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
-            aria-label="Tùy chọn"
-          >
-            ⋯
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onMessage(friend.id, friend.username)}
+              className="rounded-full border border-zinc-300 px-2.5 py-1 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Nhắn tin
+            </button>
+            <button
+              onClick={() => setConfirming(true)}
+              className="rounded-full px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+              aria-label="Tùy chọn"
+            >
+              ⋯
+            </button>
+          </div>
         )}
       </div>
       {confirming && (
@@ -489,50 +519,5 @@ function OutgoingRequestRow({
   );
 }
 
-// ─── Shared ─────────────────────────────────────────────────────────────────────
-
-function EmptyState({
-  icon,
-  title,
-  subtitle,
-}: {
-  icon: string;
-  title: string;
-  subtitle?: string;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-1 py-10 text-center">
-      <span className="text-2xl">{icon}</span>
-      <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{title}</p>
-      {subtitle && <p className="text-xs text-zinc-500">{subtitle}</p>}
-    </div>
-  );
-}
-
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-xl bg-red-50 p-4 text-center dark:bg-red-900/20">
-      <p className="text-sm text-red-600 dark:text-red-400">⚠ Không tải được dữ liệu</p>
-      <p className="text-xs text-red-500 dark:text-red-400">Lỗi: {message}</p>
-      <button
-        onClick={onRetry}
-        className="rounded-full border border-red-300 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-100 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/40"
-      >
-        Thử lại
-      </button>
-    </div>
-  );
-}
-
-function SkeletonRows({ count }: { count: number }) {
-  return (
-    <div className="flex flex-col gap-2">
-      {Array.from({ length: count }).map((_, i) => (
-        <div
-          key={i}
-          className="h-12 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-800"
-        />
-      ))}
-    </div>
-  );
-}
+// EmptyState/ErrorState/SkeletonRows: trích xuất sang src/components/ui/states.tsx
+// (dùng chung với DmInbox/DmThread) — xem import ở đầu file.
