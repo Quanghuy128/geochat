@@ -15,6 +15,13 @@ Mô tả tùy chọn của user (nếu có): **$ARGUMENTS**
 
 ## Các bước
 
+0. **Auto checkout branch đúng context**:
+   - Chạy `git branch --show-current` để biết đang ở đâu.
+   - Nếu đang ở `master`: **tự động tạo nhánh** tên `<type>/<short-desc>` dựa vào nội dung thay đổi (đọc diff trước để suy ra type + scope). Chạy `git checkout -b <branch>` trước khi làm gì khác.
+   - Nếu đang ở nhánh feature nhưng thay đổi **không liên quan** nhánh đó (khác scope hẳn): cảnh báo user, hỏi có muốn tạo nhánh mới không trước khi tiếp tục.
+   - Nếu đang ở nhánh feature phù hợp: giữ nguyên, không checkout.
+   - **Tên nhánh**: `<type>/<kebab-scope>` — ví dụ `feat/username-auth`, `fix/map-tile`, `chore/cleanup`. Không dùng dấu cách, không dùng tiếng Việt.
+
 1. **Khảo sát**: chạy `git status`, `git diff` (và `git diff --staged` nếu đã stage) để hiểu RÕ thay đổi. Không commit mù.
 2. **Kiểm an toàn**:
    - `git status` xác nhận `.env.local`, file chứa key/secret KHÔNG nằm trong danh sách stage.
