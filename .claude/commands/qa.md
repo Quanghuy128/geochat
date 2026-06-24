@@ -1,21 +1,21 @@
 ---
-description: Bước 5 pipeline — Checker chạy thử feature live (build + dev + verify hành vi)
+description: Step 5 of the pipeline — Checker runs the feature live (build + dev + behavior verification)
 ---
 
-Bạn đang ở bước **qa** của pipeline GeoChat.
+You are at the **qa** step of the GeoChat pipeline.
 
 Feature: **$ARGUMENTS**
 
-**Đọc test plan trước**: nếu có `docs/loops/<feature>-testplan.md` (do `/plan` tạo) → chạy đúng từng bước trong đó làm chuẩn nghiệm thu. Không có thì bám tiêu chí nghiệm thu trong STATE.
+**Read the test plan first**: if `docs/loops/<feature>-testplan.md` exists (created by `/plan`) → follow each step as the acceptance standard. Otherwise fall back to the acceptance criteria in STATE.
 
-Kiểm chứng hành vi thật (không chỉ đọc code):
-1. `npm run build` — phải pass (typecheck + lint).
-2. `npm run dev` (background) → chờ ready → verify trang 200 + không lỗi runtime trong log.
-3. Verify đúng tiêu chí nghiệm thu trong STATE: với feature liên quan DB/realtime, test qua Supabase REST (SELECT/INSERT) hoặc chrome-devtools nếu có Chrome.
-4. Bám design doc/scope làm chuẩn — KHÔNG pass cho có.
+Verify real behavior (not just reading code):
+1. `npm run build` — must pass (typecheck + lint).
+2. `npm run dev` (background) → wait until ready → verify root route returns 200 and no runtime errors in the log.
+3. Verify each acceptance criterion from STATE: for DB/realtime features, test via Supabase REST (SELECT/INSERT) or chrome-devtools if Chrome is available.
+4. Use the design doc/scope as the standard — do NOT pass just to be done.
 
-Kết quả PASS/FAIL ghi vào STATE.
-- FAIL → quay lại `/build`.
-- PASS → gợi ý chạy `/ship`.
+Write PASS/FAIL result to STATE.
+- FAIL → return to `/build`.
+- PASS → suggest running `/ship`.
 
-Nhớ TaskStop dev server sau khi xong.
+Remember to TaskStop the dev server when done.

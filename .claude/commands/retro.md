@@ -1,18 +1,22 @@
 ---
-description: Retrospective — nhìn lại các feature đã ship, rút pattern, feed vào learnings
+description: Retrospective — review shipped features, extract patterns, and improve commands + agents + learnings
 ---
 
-**retro** — nhìn lại công việc gần đây của GeoChat (đóng vòng REFLECT, compound kiến thức).
+**retro** — look back at recent GeoChat work (closes the REFLECT loop, compounds knowledge).
 
-Phạm vi: **$ARGUMENTS** (mặc định: từ lần retro trước / vài feature gần nhất).
+Scope: **$ARGUMENTS** (default: since last retro / last few features).
 
-Thu thập:
-1. **Đã ship gì**: `git log --oneline` từ mốc trước → liệt kê feature + commit.
-2. **Pipeline chạy thế nào**: feature nào qua đủ Maker→Checker? Review bắt được gì (blocker quan trọng)?
-3. **Bài học**: cái gì làm tốt (giữ), cái gì vấp (sửa quy trình). Rút pattern tái dùng.
-4. **Nợ tích luỹ**: việc treo qua nhiều feature → có nên ưu tiên dọn?
+Collect:
+1. **What shipped**: `git log --oneline` from the prior marker → list features + commits.
+2. **How the pipeline ran**: which features went through the full Maker→Checker flow? What did review catch (important blockers)?
+3. **Lessons**: what worked well (keep), what went wrong (fix process). Extract reusable patterns.
+4. **Accumulated debt**: tasks that have dragged across multiple features → worth prioritizing?
 
 Output:
-- Tóm tắt: shipped, blocker đáng nhớ, thay đổi quy trình đề xuất.
-- **Cập nhật `docs/learnings.md`**: thêm pattern mới (kèm confidence). Promote learning đã đủ tin cậy (xem /learn).
-- Gợi ý 1-3 việc cho đợt tới.
+- Summary: shipped items, notable blockers, proposed process changes.
+- **Update `docs/learnings.md`**: add new patterns (with confidence level). Promote learnings with enough evidence (see /learn).
+- **Improve commands + agents** (key addition): for any process change identified — apply it now:
+  - If a command's instructions caused confusion or inefficiency → edit `.claude/commands/<name>.md` directly.
+  - If an agent's behavior needs adjustment → edit `.claude/agents/<name>.md` directly.
+  - Document each change inline as a comment: `<!-- retro YYYY-MM-DD: <reason> -->` so future retros can trace it.
+- Suggest 1–3 priorities for the next cycle.

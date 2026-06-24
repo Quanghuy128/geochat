@@ -183,6 +183,9 @@ function SignInForm({ onSuccess, signIn }: SignInFormProps) {
           {error}
         </p>
       )}
+      <p className="text-center text-xs text-zinc-400 dark:text-zinc-500">
+        Quên mật khẩu? Liên hệ admin để được hỗ trợ.
+      </p>
       <button
         type="submit"
         disabled={loading || !username.trim() || !password}

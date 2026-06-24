@@ -18,7 +18,7 @@
 | 1. Scaffold Next.js app | ✅ Done | Next 16 TS+Tailwind+App Router+src; lib: supabase-js/ssr, @vis.gl/react-google-maps; build pass |
 | 2. UI skeleton chat + map (mock) | ✅ Done | ChatPanel + MapPanel (fallback khi chưa có key), page 2-cột; build pass |
 | 3. Wire Supabase Realtime (chat) | ✅ Done | migration 0001 (bảng messages+RLS+Realtime); useMessages hook (load+subscribe INSERT+send); useIdentity; ChatPanel realtime. Verify: build pass, dev 200, SELECT/INSERT/realtime OK |
-| 4. Map presence (location realtime) | ⬜ Blocked | cần Google Maps API key |
+| 4. Map presence (location realtime) | ⬜ Blocked | ~~cần Google Maps API key~~ → đã đổi sang OpenFreeMap (tiles.openfreemap.org/styles/bright), không cần key; chờ wire Supabase Presence |
 
 ## Quyết định đang giữ
 - Package manager: **npm** (Node 25 sẵn; Bun chưa cài, để sau).
@@ -26,5 +26,6 @@
 
 ## Next action
 Chat realtime ĐÃ chạy thật trên Supabase. Tiếp theo:
-- **Phase 4 (map presence)**: chờ Google Maps API key → đổi MapPanel sang Supabase Presence broadcast tọa độ.
+- **Phase 4 (map presence)**: tile đã là OpenFreeMap (không cần API key). Còn lại: wire Supabase Presence broadcast tọa độ vào MapPanel.
 - **Nợ kỹ thuật**: bảng messages còn 1 tin test "hello from curl" (xóa trong Studio nếu muốn — REST không xóa được vì chưa có DELETE policy, đúng ý đồ demo). Khi thêm auth: siết RLS (insert chỉ authenticated, user_id = auth.uid()).
+- ✅ 2026-06-24: Dọn nợ — xóa dead file `src/components/auth-panel.tsx`; cài Vitest ^4.1.9 + `vitest.config.ts` (alias @/→src/) + scripts `test`/`test:watch`. 16 tests pass, build pass.

@@ -1,20 +1,24 @@
 ---
-description: Bước 4 pipeline — Checker (code-reviewer) review độc lập code vừa build
+description: Step 4 of the pipeline — independent Checker (code-reviewer + architect) reviews the built code
 ---
 
-Bạn đang ở bước **review** của pipeline GeoChat.
+You are at the **review** step of the GeoChat pipeline.
 
 Feature: **$ARGUMENTS**
 
-**Gọi subagent `code-reviewer`** (Checker) qua Agent tool — đây là agent KHÁC với feature-builder đã code (tránh thiên kiến tự kiểm).
+Run two independent review agents in parallel via the Agent tool:
 
-Truyền cho code-reviewer:
-- Tên feature + đường dẫn STATE + plan + tiêu chí nghiệm thu.
-- Danh sách assumption mà Maker đã nêu (yêu cầu verify từng cái).
-- Diff/file đã thay đổi (chạy `git diff` để biết).
+**1. `code-reviewer`** (Checker) — standard code review:
+- Pass: feature name + path to STATE + plan + acceptance criteria.
+- Pass: the full list of assumptions the Maker listed (ask it to verify each one).
+- Pass: the diff/changed files (run `git diff` first to gather them).
+- Returns findings 🔴/🟡/🟢 + verdict PASS/NEEDS-WORK.
 
-code-reviewer trả về finding 🔴/🟡/🟢 + kết luận PASS/NEEDS-WORK.
-- NEEDS-WORK → quay lại `/build` cho Maker sửa (truyền finding).
-- PASS → gợi ý chạy `/qa`.
+**2. `architect`** (architectural review) — design conformance:
+- Pass: the same diff + the original design from STATE.
+- Ask it to assess: does the implementation match the design? Any architectural drift, unnecessary complexity, or missing edge-case handling?
+- Returns architectural findings + verdict.
 
-Ghi kết quả review vào STATE.
+Aggregate both verdicts:
+- Any NEEDS-WORK finding → return to `/build` for the Maker to fix (pass all findings), then re-run `/review`.
+- Both PASS → write the review result to STATE, then suggest running `/qa`.

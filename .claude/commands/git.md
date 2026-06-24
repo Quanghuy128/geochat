@@ -1,53 +1,60 @@
 ---
-description: Commit + push an toàn — viết commit message tiếng Anh đầy đủ (summary + body chi tiết), kiểm secret trước khi commit
+description: Safe commit + push — write a full English commit message (summary + detailed body), check for secrets before committing
 ---
 
-Bạn đang chạy skill **git** của GeoChat: stage → kiểm an toàn → commit (message **tiếng Anh**, mô tả đầy đủ) → push.
+You are running the **git** skill for GeoChat: stage → safety check → commit (message **in English**, fully detailed) → push.
 
-Mô tả tùy chọn của user (nếu có): **$ARGUMENTS**
+Optional description from user: **$ARGUMENTS**
 
-## Nguyên tắc
+## Principles
 
-- **Commit message LUÔN bằng tiếng Anh**, kể cả khi user mô tả bằng tiếng Việt — dịch sang tiếng Anh kỹ thuật, rõ nghĩa.
-- **Không bao giờ** commit `.env.local` hay secret (xem DB-safety + careful hook trong CLAUDE.md).
-- **Không push thẳng lên `master`** nếu đang ở `master` — tạo nhánh trước rồi mới push.
-- `git push --force` / `-f` / `reset --hard` bị hook `careful` chặn — đừng dùng; nếu cần rewrite, dùng `--force-with-lease` và giải thích lý do.
+- **Commit messages are ALWAYS in English**, even if the user describes changes in Vietnamese — translate to clear technical English.
+- **Never** commit `.env.local` or secrets (see DB safety + careful hook in CLAUDE.md).
+- **Never push directly to `master`** — create a branch first.
+- `git push --force` / `-f` / `reset --hard` are blocked by the `careful` hook — do not use them; if a rewrite is genuinely needed, use `--force-with-lease` and explain why.
 
-## Các bước
+## Steps
 
-1. **Khảo sát**: chạy `git status`, `git diff` (và `git diff --staged` nếu đã stage) để hiểu RÕ thay đổi. Không commit mù.
-2. **Kiểm an toàn**:
-   - `git status` xác nhận `.env.local`, file chứa key/secret KHÔNG nằm trong danh sách stage.
-   - Nếu thấy secret sắp bị track → DỪNG, báo user, không commit.
-3. **Stage**: `git add` các file liên quan (ưu tiên thêm có chọn lọc; `git add -A` chỉ khi chắc toàn bộ thay đổi đều thuộc về commit này).
-4. **Soạn commit message tiếng Anh** theo cấu trúc 3 lớp (xem mẫu bên dưới):
-   - **Summary** (dòng đầu): tổng quan, ≤ 72 ký tự, thể mệnh lệnh, có prefix Conventional Commit.
-   - **Body**: mô tả đầy đủ — *what & why* (không chỉ *what*); liệt kê thay đổi chính theo gạch đầu dòng; nêu lý do/bối cảnh; ghi rõ tác động (breaking, migration, env mới).
-   - **Footer** (nếu có): tham chiếu issue/PR, `BREAKING CHANGE:`, co-author.
-5. **Commit**: dùng heredoc để giữ định dạng nhiều dòng.
-6. **Push**: nếu đang ở nhánh feature → `git push -u origin <branch>`. Nếu đang ở `master` → tạo nhánh trước (`git checkout -b <type>/<short-desc>`) rồi push. Báo user nếu cần mở PR (gợi ý dùng `gh pr create`).
-7. **Báo cáo**: in lại commit message đã dùng + kết quả push (nhánh, có cần PR không).
+0. **Auto-checkout the right branch**:
+   - Run `git branch --show-current` to see where you are.
+   - If on `master`: **automatically create a branch** named `<type>/<short-desc>` based on the diff content (read diff first to infer type + scope). Run `git checkout -b <branch>` before anything else.
+   - If on a feature branch but the changes are clearly unrelated to that branch's scope: warn the user, ask whether to create a new branch before proceeding.
+   - If on the right feature branch: leave it, no checkout needed.
+   - **Branch names**: `<type>/<kebab-scope>` — e.g. `feat/username-auth`, `fix/map-tile`, `chore/cleanup`. No spaces, no non-ASCII characters.
 
-## Mẫu commit message (tiếng Anh, đầy đủ)
+1. **Survey**: run `git status`, `git diff` (and `git diff --staged` if already staged) to fully understand the changes. Never commit blind.
+2. **Safety check**:
+   - `git status` confirms `.env.local` and any key/secret files are NOT in the stage list.
+   - If a secret is about to be tracked → STOP, warn the user, do not commit.
+3. **Stage**: `git add` relevant files selectively; use `git add -A` only when confident every change belongs in this commit.
+4. **Write commit message in English** using the 3-layer structure (see template below):
+   - **Summary** (first line): ≤72 chars, imperative mood, Conventional Commit prefix.
+   - **Body**: full *what & why*; bullet list of main changes; rationale/context; call out impact (breaking, migration, new env var).
+   - **Footer** (if needed): issue/PR references, `BREAKING CHANGE:`, co-author.
+5. **Commit**: use a heredoc to preserve multi-line formatting.
+6. **Push**: on a feature branch → `git push -u origin <branch>`. On `master` → create a branch first, then push. Suggest `gh pr create` if a PR is needed.
+7. **Report**: print the commit message used + push result (branch, PR needed?).
+
+## Commit message template (English, complete)
 
 ```
 <type>(<scope>): <imperative summary, ≤72 chars>
 
-<Overview: 1–2 câu nói rõ thay đổi này LÀM GÌ và TẠI SAO.>
+<Overview: 1–2 sentences — what this change DOES and WHY.>
 
-- <Detailed change 1: file/khu vực + nội dung cụ thể>
+- <Detailed change 1: file/area + specific content>
 - <Detailed change 2>
 - <Detailed change 3>
 
-<Tác động / lưu ý: breaking change, migration, env var mới, follow-up.>
+<Impact / notes: breaking change, migration, new env var, follow-up needed.>
 
 Refs: #<pr-or-issue>
 ```
 
 `type` ∈ `feat` | `fix` | `chore` | `refactor` | `docs` | `test` | `ci` | `perf` | `build`.
-`scope` ví dụ: `chat`, `map`, `auth`, `ci`, `db`, `supabase`.
+`scope` examples: `chat`, `map`, `auth`, `ci`, `db`, `supabase`.
 
-### Ví dụ thực tế
+### Real example
 
 ```
 ci(discord): enrich deploy notification embed
@@ -65,4 +72,4 @@ No behavior change to the build/lint/typecheck gate.
 Refs: #4
 ```
 
-> Mục tiêu: người đọc `git log` 6 tháng sau vẫn hiểu được *cái gì đổi* và *vì sao*, không cần mở diff.
+> Goal: someone reading `git log` 6 months from now can understand *what changed* and *why* without opening the diff.

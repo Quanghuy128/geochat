@@ -1,17 +1,17 @@
 ---
-description: Bước 1 pipeline — ép làm rõ scope feature bằng 6 câu hỏi trước khi code
+description: Step 1 of the pipeline — force-clarify feature scope with 6 questions before writing any code
 ---
 
-Bạn đang ở bước **office-hours** của pipeline GeoChat (xem [CLAUDE.md](../../CLAUDE.md)).
+You are at the **office-hours** step of the GeoChat pipeline (see [CLAUDE.md](../../CLAUDE.md)).
 
-Feature cần làm rõ: **$ARGUMENTS**
+Feature to clarify: **$ARGUMENTS**
 
-Đặt tối đa **6 câu hỏi** ép làm rõ scope (dùng AskUserQuestion). Bám:
-1. Mục tiêu người dùng cuối của feature là gì? Định nghĩa "xong".
-2. Phạm vi IN / OUT (cái gì KHÔNG làm lần này).
-3. Data model + thay đổi DB (bảng/cột/RLS)?
-4. Edge case quan trọng (mạng rớt, đồng thời, dữ liệu thiếu).
-5. Ảnh hưởng tới phần đã có (chat realtime, identity)?
-6. Tiêu chí nghiệm thu để Checker kiểm.
+Ask up to **6 questions** to lock down scope (use AskUserQuestion). Cover:
+1. What is the end-user goal of this feature? What does "done" mean?
+2. Scope IN / OUT (what is explicitly NOT in this iteration).
+3. Data model + DB changes (tables/columns/RLS)?
+4. Important edge cases (network drop, concurrency, missing data).
+5. Impact on existing features (realtime chat, identity)?
+6. Acceptance criteria for the Checker to verify.
 
-Sau khi có câu trả lời, ghi tóm tắt scope vào `docs/loops/<feature>-STATE.md` rồi gợi ý chạy `/plan`.
+After receiving answers, write the scope summary to `docs/loops/<feature>-STATE.md`, then suggest running `/plan`.

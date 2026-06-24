@@ -1,17 +1,17 @@
 ---
-description: Cập nhật docs khớp với thay đổi vừa ship (README, CLAUDE.md, STATE)
+description: Sync docs to match what was just shipped (README, CLAUDE.md, STATE)
 ---
 
-**document-release** — đồng bộ tài liệu sau khi ship feature: **$ARGUMENTS**
+**document-release** — sync documentation after shipping feature: **$ARGUMENTS**
 
-Làm:
-1. Xem `git diff` / commit gần nhất để biết đã thay đổi gì.
-2. Cập nhật cho khớp thực tế:
-   - **README.md**: tính năng mới, cách chạy, env cần thiết (nếu đổi).
-   - **CLAUDE.md**: stack/convention nếu thay đổi (vd đổi lib, thêm bảng).
-   - **docs/loops/<feature>-STATE.md**: đánh dấu ship done.
-   - **.env.example**: thêm/bớt biến môi trường nếu có.
-3. Đảm bảo KHÔNG tài liệu nào còn mô tả sai (vd nhắc Google Maps khi đã đổi MapLibre).
-4. Không bịa tính năng chưa có; chỉ ghi cái đã ship thật.
+Steps:
+1. Read `git diff` / the most recent commits to understand what changed.
+2. Update docs to match reality:
+   - **README.md**: new features, how to run, new required env vars (if any).
+   - **CLAUDE.md**: stack/convention changes (e.g. switched library, new table).
+   - **docs/loops/<feature>-STATE.md**: mark ship done.
+   - **.env.example**: add/remove env vars as needed.
+3. Ensure NO document still describes something wrong (e.g. mentions Google Maps after the switch to MapLibre).
+4. Do not invent features that haven't shipped; only document what is actually in the code.
 
-Mục tiêu: người mới clone đọc docs là chạy được, không lệch với code.
+Goal: a new contributor can clone, read the docs, and run the app without any drift from reality.

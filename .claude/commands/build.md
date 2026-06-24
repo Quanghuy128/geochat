@@ -1,17 +1,17 @@
 ---
-description: Bước 3 pipeline — Maker (feature-builder) code feature theo plan
+description: Step 3 of the pipeline — Maker (feature-builder) codes the feature from the plan
 ---
 
-Bạn đang ở bước **build** của pipeline GeoChat.
+You are at the **build** step of the GeoChat pipeline.
 
 Feature: **$ARGUMENTS**
 
-**Gọi subagent `feature-builder`** (Maker) qua Agent tool để implement feature theo plan trong `docs/loops/<feature>-STATE.md`.
+**Invoke the `feature-builder` subagent** (Maker) via the Agent tool to implement the feature according to the plan in `docs/loops/<feature>-STATE.md`.
 
-QUAN TRỌNG — đúng nguyên tắc Maker ≠ Checker:
-- Maker (feature-builder) CHỈ code + cập nhật STATE + nêu assumption.
-- KHÔNG để Maker tự kết luận "đã ổn". Việc nghiệm thu là của `/review` và `/qa` (Checker độc lập).
+IMPORTANT — enforcing the Maker ≠ Checker principle:
+- The Maker (feature-builder) only codes + updates STATE + lists assumptions.
+- Do NOT let the Maker conclude "looks good." Verification is done by `/review` and `/qa` (independent Checker).
 
-Truyền cho feature-builder: tên feature, đường dẫn STATE, plan, và yêu cầu liệt kê assumption cần Checker verify.
+Pass to feature-builder: feature name, path to STATE, the plan, and an explicit request to list every assumption for the Checker to verify.
 
-Sau khi Maker xong, gợi ý chạy `/review`.
+After the Maker finishes, suggest running `/review`.
