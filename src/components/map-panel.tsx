@@ -56,7 +56,7 @@ function gpsStatusText(args: {
  * online = đậm; offline = mờ (opacity-50).
  */
 export function MapPanel({ fallback = [] }: { fallback?: UserLocation[] }) {
-  const { user, configured, loading } = useAuth();
+  const { user, username, configured, loading } = useAuth();
 
   // Memo hóa identity để giữ reference ổn định giữa các render — tránh
   // effect track+upsert trong usePresence chạy lặp mỗi render.
@@ -65,16 +65,13 @@ export function MapPanel({ fallback = [] }: { fallback?: UserLocation[] }) {
       user
         ? {
             userId: user.id,
-            userName:
-              (user.user_metadata?.full_name as string | undefined) ??
-              user.email ??
-              "Ẩn danh",
+            userName: username ?? user.email?.split("@")[0] ?? "Ẩn danh",
           }
         : null,
     // Cố ý dùng primitive thay vì `user` để identity ổn định khi user object
     // có reference mới nhưng nội dung không đổi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [user?.id, user?.email, user?.user_metadata?.full_name],
+    [user?.id, username, user?.email],
   );
 
   const { coords, error: geoError, permission } = useGeolocation();
