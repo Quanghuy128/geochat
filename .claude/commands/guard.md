@@ -1,12 +1,12 @@
 ---
-description: An toàn tối đa — bật cả careful (chặn lệnh phá hủy) lẫn freeze (giới hạn vùng sửa)
+description: Maximum safety — enable both careful (block destructive commands) and freeze (restrict edit area)
 ---
 
-Bật **guard** = `/careful` + `/freeze` cho công việc nhạy cảm (production, DB shared).
+Enable **guard** = `/careful` + `/freeze` for sensitive operations (production, shared DB).
 
-Làm:
-1. Xác nhận hook `careful` đang hoạt động (đã wire sẵn trong settings.json — chặn rm -rf/DROP/force-push). Nếu chưa nạp (vừa tạo session này) → nhắc user restart/`/hooks`.
-2. Bật freeze: ghi vùng cho phép vào `.claude/.freeze` theo `$ARGUMENTS` (như /freeze).
-3. Báo user: "Guard ON — careful (chặn lệnh phá hủy) + freeze (chỉ sửa trong <list>). Gỡ freeze: /unfreeze."
+Steps:
+1. Confirm the `careful` hook is active (already wired in settings.json — blocks rm -rf/DROP/force-push). If not yet loaded (created this session) → remind the user to restart/run `/hooks`.
+2. Enable freeze: write the allowed paths to `.claude/.freeze` from `$ARGUMENTS` (same as /freeze).
+3. Report: "Guard ON — careful (destructive commands blocked) + freeze (edits restricted to <list>). Disable freeze: /unfreeze."
 
-Dùng khi: thao tác trên Supabase shared, deploy, hoặc bất kỳ việc nào một lệnh sai = mất dữ liệu.
+Use when: operating on a shared Supabase instance, deploying, or any situation where a single wrong command means data loss.

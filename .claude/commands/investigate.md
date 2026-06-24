@@ -1,18 +1,18 @@
 ---
-description: Debug root-cause có kỷ luật — điều tra trước, fix sau (Iron Law)
+description: Disciplined root-cause debugging — investigate first, fix later (Iron Law)
 ---
 
-Điều tra bug: **$ARGUMENTS**
+Investigate bug: **$ARGUMENTS**
 
-**Iron Law: KHÔNG fix khi chưa hiểu nguyên nhân.** (mượn từ gstack /investigate)
+**Iron Law: do NOT fix until you understand the cause.** (borrowed from gstack /investigate)
 
-Quy trình:
-1. **Khoanh vùng**: xác định module liên quan → bật `/freeze` vùng đó (ghi `.claude/.freeze`) để không sửa lan man trong lúc điều tra.
-2. **Tái hiện**: dựng cách tái hiện bug (test/log/curl/dev server). Bug không tái hiện được = chưa hiểu.
-3. **Giả thuyết**: nêu 1-3 giả thuyết nguyên nhân, có bằng chứng (log, code path, data). Xếp theo khả năng.
-4. **Kiểm chứng**: test từng giả thuyết bằng quan sát thật (đọc code, thêm log, query DB), KHÔNG đoán.
-5. **Root cause**: chỉ khi xác định chắc nguyên nhân mới đề xuất fix.
+Process:
+1. **Isolate**: identify the affected module → enable `/freeze` on that area (write `.claude/.freeze`) to prevent accidental edits while investigating.
+2. **Reproduce**: build a reliable reproduction (test/log/curl/dev server). A bug you can't reproduce = a bug you don't understand.
+3. **Hypothesize**: list 1–3 candidate causes with evidence (logs, code path, data). Rank by likelihood.
+4. **Verify**: test each hypothesis with real observations (read code, add logs, query DB) — do NOT guess.
+5. **Root cause**: only propose a fix once the cause is confirmed.
 
-**Giới hạn 3 lần**: nếu sửa 3 lần vẫn không hết → DỪNG, chất vấn lại architecture/giả định thay vì thử tiếp.
+**3-strike rule**: if 3 fix attempts fail → STOP. Challenge the architecture/assumptions instead of continuing to iterate.
 
-Sau khi tìm ra: gỡ freeze (`/unfreeze`), rồi đưa qua `/build` (Maker fix) → `/review` → `/qa`. Ghi nguyên nhân + cách phát hiện vào `docs/learnings.md`.
+After identifying root cause: lift the freeze (`/unfreeze`), then route through `/build` (Maker fixes) → `/review` → `/qa`. Write the cause and how it was found to `docs/learnings.md`.

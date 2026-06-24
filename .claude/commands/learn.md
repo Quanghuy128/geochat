@@ -1,18 +1,18 @@
 ---
-description: Quản lý learnings — thêm pattern mới (quarantine) và promote khi đủ tin cậy
+description: Manage learnings — add new patterns (quarantine) and promote when confidence is earned
 ---
 
-**learn** — quản lý trí nhớ tích luỹ tại `docs/learnings.md`. Pattern: **quarantine → promote** (mượn gstack domain skills).
+**learn** — manage the accumulated knowledge base at `docs/learnings.md`. Pattern: **quarantine → promote** (borrowed from gstack domain skills).
 
-Hành động (theo `$ARGUMENTS`):
+Actions (based on `$ARGUMENTS`):
 
-**Thêm learning mới** (mặc định): ghi vào `docs/learnings.md` đúng section (Realtime/Auth/Map/Quy trình...), format:
-`- [confidence: thấp/vừa/cao] <pattern>. **Bối cảnh**: <khi nào học được>.`
-- Mới rút ra, chưa lặp lại → **confidence: thấp** (quarantine — biết nhưng chưa chắc).
-- Đã thấy đúng ≥2 lần qua các feature → nâng **vừa/cao** (promote).
+**Add a new learning** (default): write to the correct section in `docs/learnings.md` (Realtime/Auth/Map/Process…), format:
+`- [confidence: low/medium/high] <pattern>. **Context**: <when this was learned>.`
+- Freshly extracted, not yet repeated → **confidence: low** (quarantine — noted but not confirmed).
+- Seen to be correct ≥2 times across features → promote to **medium/high**.
 
-**Promote**: rà các learning confidence thấp/vừa — cái nào đã được xác nhận lại qua feature mới → nâng cấp + ghi lý do. Cái nào hoá ra sai → sửa hoặc xóa.
+**Promote**: review low/medium-confidence learnings — any confirmed by a recent feature → upgrade and record the reason. Any that turned out wrong → fix or delete.
 
-**Áp dụng**: khi bắt đầu feature mới, đọc learnings liên quan trước (đặc biệt confidence cao) để không lặp lỗi cũ.
+**Apply**: at the start of a new feature, read relevant learnings (especially high-confidence ones) to avoid repeating past mistakes.
 
-Nguyên tắc: learning confidence cao = luật áp dụng mặc định; thấp = gợi ý cần kiểm lại. Đừng để learnings phình rác — gộp/xóa cái lỗi thời.
+Principle: high-confidence learnings = default rules to apply; low = suggestions to re-verify. Keep learnings.md lean — merge or delete stale entries.

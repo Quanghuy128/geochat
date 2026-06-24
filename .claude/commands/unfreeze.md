@@ -1,9 +1,9 @@
 ---
-description: Gỡ giới hạn vùng sửa do /freeze đặt
+description: Remove the edit restriction set by /freeze
 ---
 
-Tắt **freeze**: xóa file `.claude/.freeze`.
+Disable **freeze**: delete the `.claude/.freeze` file.
 
-Làm:
-1. Nếu `.claude/.freeze` tồn tại → xóa nó. Báo: "Đã gỡ băng — sửa file tự do trở lại."
-2. Nếu không tồn tại → báo "Hiện không có vùng nào bị đóng băng."
+Steps:
+1. If `.claude/.freeze` exists → delete it. Report: "Freeze OFF — all files are editable again."
+2. If it does not exist → report "No freeze is currently active."

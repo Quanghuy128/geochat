@@ -1,20 +1,20 @@
 ---
-description: Audit bảo mật (OWASP Top 10 + STRIDE) bằng security-reviewer độc lập
+description: Security audit (OWASP Top 10 + STRIDE) via an independent security-reviewer
 ---
 
-Bước **cso** (Chief Security Officer) của pipeline GeoChat.
+**cso** (Chief Security Officer) step of the GeoChat pipeline.
 
-Phạm vi: **$ARGUMENTS** (mặc định: diff hiện tại / feature đang làm).
+Scope: **$ARGUMENTS** (default: current diff / feature being worked on).
 
-**Gọi subagent `security-reviewer`** (Checker bảo mật độc lập) qua Agent tool.
+**Invoke the `security-reviewer` subagent** (independent security Checker) via the Agent tool.
 
-Truyền cho nó:
-- File/diff cần audit (chạy `git diff` để biết phạm vi).
-- Bối cảnh feature từ `docs/loops/<feature>-STATE.md`.
-- Nhắc trọng tâm GeoChat: RLS Supabase, secret/NEXT_PUBLIC, auth callback, input validation.
+Pass to it:
+- Files/diff to audit (run `git diff` to determine scope).
+- Feature context from `docs/loops/<feature>-STATE.md`.
+- GeoChat focus areas: Supabase RLS, secret/NEXT_PUBLIC handling, auth callback, input validation.
 
-Nhận finding 🔴/🟠/🟡/🟢 + PASS/NEEDS-WORK.
-- Có finding 🔴/🟠 → quay lại `/build` cho Maker vá (truyền finding) rồi cso lại.
-- PASS → ghi vào STATE, tiếp `/qa` hoặc `/ship`.
+Receive findings 🔴/🟠/🟡/🟢 + PASS/NEEDS-WORK verdict.
+- 🔴/🟠 finding → return to `/build` for the Maker to fix (pass findings), then re-run cso.
+- PASS → write result to STATE, proceed to `/qa` or `/ship`.
 
-Khi nào chạy: thay đổi đụng auth, RLS, migration, input người dùng, secret, API route.
+When to run: any change touching auth, RLS, migrations, user input, secrets, or API routes.

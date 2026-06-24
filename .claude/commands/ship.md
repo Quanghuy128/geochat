@@ -1,15 +1,15 @@
 ---
-description: Bước 6 pipeline — chốt feature: test cuối + cập nhật STATE/learnings + commit
+description: Step 6 of the pipeline — close out the feature: final test + update STATE/learnings + commit
 ---
 
-Bạn đang ở bước **ship** của pipeline GeoChat.
+You are at the **ship** step of the GeoChat pipeline.
 
 Feature: **$ARGUMENTS**
 
-Chỉ ship khi `/review` PASS và `/qa` PASS.
+Only ship after both `/review` PASS and `/qa` PASS.
 
-1. Chạy lại `npm run build` lần cuối cho chắc.
-2. Cập nhật `docs/loops/<feature>-STATE.md`: đánh dấu Done, ghi gì đã verify.
-3. Thêm pattern học được vào `docs/learnings.md` (kèm confidence).
-4. `git add -A` → kiểm `.env.local`/secret KHÔNG bị track → commit với message mô tả feature + "qua pipeline Maker→Checker".
-5. Báo cáo: feature đã ship, các finding đã xử lý, nợ kỹ thuật còn lại.
+1. Run `npm run build` one final time to confirm clean.
+2. Update `docs/loops/<feature>-STATE.md`: mark Done, record what was verified.
+3. Add patterns learned to `docs/learnings.md` (with confidence level).
+4. `git add -A` → confirm `.env.local`/secrets are NOT staged → commit with a message describing the feature + "shipped through Maker→Checker pipeline."
+5. Report: feature shipped, findings resolved, remaining tech debt.
