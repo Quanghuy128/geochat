@@ -41,7 +41,9 @@ App **chat realtime** + **map location realtime** (MapLibre GL + OpenStreetMap).
 ## Pipeline 1 feature (cỗ máy auto-workflow kiểu gstack)
 
 ```
+ANALYZE /analyze      → 3 BA agent song song: requirements + solutions + ideas
 THINK   /office-hours → làm rõ scope (6 câu hỏi)   [hoặc /autoplan: chạy + chỉ hỏi taste]
+DESIGN  /design       → 3 designer agent song song: wireframe + screen flow + mockup → design doc
 PLAN    /plan         → architecture + data flow + edge case + TEST PLAN (file riêng)
 BUILD   /build        → feature-builder (maker)
 REVIEW  /review       → code-reviewer (checker độc lập)
@@ -53,7 +55,12 @@ REFLECT /canary       → giám sát sau ship   /retro + /learn → feed learnin
 
 **Guardrails**: `/careful` (hook chặn lệnh phá hủy) · `/freeze`+`/unfreeze`+`/guard` (giới hạn vùng sửa) · `/investigate` (debug root-cause, Iron Law: điều tra trước fix).
 **Tiện ích**: `/health` (dashboard chất lượng) · `/document-release` (đồng bộ docs) · `/learn` (quarantine→promote learnings).
-**Agents**: Maker = `feature-builder`; Checker (độc lập) = `code-reviewer`, `security-reviewer`.
+**Agents**: Maker = `feature-builder`; Checker (độc lập) = `code-reviewer`, `security-reviewer`; Designer = `designer`; Process Owner = `process-manager`.
+
+### Cải tiến pipeline (chạy định kỳ hoặc sau khi thay đổi lớn)
+```
+AUDIT   /audit-process → process-manager kiểm tra toàn bộ agents + commands + handoffs → tự apply fix
+```
 
 > Full workflow gstack + mapping: [docs/gstack-workflow.md](docs/gstack-workflow.md).
 > ⚠️ Skill/agent/hook mới cần restart hoặc `/hooks` để Claude Code nạp (không nạp giữa session).
