@@ -57,6 +57,13 @@ REFLECT /canary       → giám sát sau ship   /retro + /learn → feed learnin
 **Tiện ích**: `/health` (dashboard chất lượng) · `/document-release` (đồng bộ docs) · `/learn` (quarantine→promote learnings).
 **Agents**: Maker = `feature-builder`; Checker (độc lập) = `code-reviewer`, `security-reviewer`; Designer = `designer`; Process Owner = `process-manager`.
 
+### Full autopilot (1 lệnh → GitHub PR)
+```
+/autopilot <feature>  → analyze→design→plan→build→review→qa→ship→PR
+                         1 gate config ở đầu (chọn phase nào muốn dừng confirm)
+                         QA fail → tự retry build 1 lần → nếu vẫn fail thì dừng báo user
+```
+
 ### Cải tiến pipeline (chạy định kỳ hoặc sau khi thay đổi lớn)
 ```
 AUDIT   /audit-process → process-manager kiểm tra toàn bộ agents + commands + handoffs → tự apply fix
