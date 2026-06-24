@@ -1,4 +1,4 @@
-import { AuthPanel } from "@/components/auth-panel";
+import { HeaderAuth } from "@/components/header-auth";
 import { ChatPanel } from "@/components/chat-panel";
 import { MapPanel } from "@/components/map-panel";
 import { MOCK_LOCATIONS, MOCK_MESSAGES } from "@/lib/mock";
@@ -13,7 +13,7 @@ export default function Home() {
             Chat realtime + bản đồ vị trí realtime
           </p>
         </div>
-        <AuthPanel />
+        <HeaderAuth />
       </header>
       <div className="grid flex-1 grid-cols-1 overflow-hidden md:grid-cols-2">
         <ChatPanel fallback={MOCK_MESSAGES} />

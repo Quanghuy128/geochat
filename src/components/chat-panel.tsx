@@ -32,13 +32,14 @@ function typingLabel(names: string[]): string {
  * Yêu cầu đăng nhập (auth) để gửi tin; chưa login → input disabled + CTA.
  */
 export function ChatPanel({ fallback }: { fallback: Message[] }) {
-  const { user, loading: authLoading, configured } = useAuth();
+  const { user, username, loading: authLoading, configured } = useAuth();
   const identity = useMemo(
     () => ({
       userId: user?.id ?? "",
-      userName: nameFromEmail(user?.email),
+      // username từ profiles (JWT metadata); fallback sang nameFromEmail cho user cũ (magic link)
+      userName: username ?? nameFromEmail(user?.email),
     }),
-    [user?.id, user?.email],
+    [user?.id, user?.email, username],
   );
   const { messages, ready, error, send } = useMessages(identity);
   // Identity cho typing: chỉ login + đã nối Supabase mới có danh tính thật.
@@ -93,7 +94,7 @@ export function ChatPanel({ fallback }: { fallback: Message[] }) {
         <p className="text-xs text-zinc-500">
           {ready
             ? user
-              ? `Realtime (Supabase) · bạn là ${identity.userName}`
+              ? `Realtime (Supabase) · bạn là ${username ? `@${username}` : identity.userName}`
               : "Realtime (Supabase) · đăng nhập để gửi tin"
             : "Mock — chưa nối Supabase"}
         </p>
