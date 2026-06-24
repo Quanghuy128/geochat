@@ -4,8 +4,8 @@ import { Map, Marker } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { UserLocation } from "@/lib/types";
 
-// Style demotiles MapLibre: tiles vector free, KHÔNG cần API key / thẻ.
-const MAP_STYLE = "https://demotiles.maplibre.org/style.json";
+// Style OpenFreeMap: tiles vector free, đầy đủ đường phố VN, KHÔNG cần API key.
+const MAP_STYLE = "https://tiles.openfreemap.org/styles/bright";
 
 type Props = {
   /** Tâm bản đồ ban đầu (tọa độ user hiện tại hoặc HCMC). */
