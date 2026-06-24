@@ -1,8 +1,11 @@
 -- Migration 0004: bảng profiles (username unique) + trigger auto-insert từ auth.users
 -- Chạy: copy vào Supabase Studio > SQL Editor > Run.
 -- Reversible: phần rollback ở cuối file.
--- QUAN TRỌNG: Tắt "Confirm email" trong Supabase Dashboard > Authentication > Settings > Email > Confirm email: OFF
---   Nếu không tắt, sign-up thành công nhưng đăng nhập ngay sẽ bị "Email not confirmed".
+-- QUAN TRỌNG — 2 setting cần bật/tắt trong Dashboard (Migration SQL không làm được):
+--   1. Authentication > Providers > Email > "Enable Email provider": ON
+--      (Thiếu cái này: sign-up trả error_code "email_provider_disabled" — không liên quan code)
+--   2. Authentication > Settings > Email > "Confirm email": OFF
+--      (Thiếu cái này: sign-up thành công nhưng đăng nhập ngay bị "Email not confirmed")
 
 -- 1. Bảng profiles
 create table if not exists public.profiles (
