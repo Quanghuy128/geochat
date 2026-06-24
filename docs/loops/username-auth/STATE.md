@@ -1,10 +1,9 @@
 # Feature: Username + Password Auth — STATE
 
-> Phase: SHIPPED
+> Phase: CANARY PASS — feature đóng vòng
 > Builder: claude-sonnet-4-6 (Maker)
 > Reviewer: claude-sonnet-4-6 (Checker, independent)
 > Date: 2026-06-24
-> Status: Code shipped. Migration 0004 cần apply thủ công lên Supabase trước khi feature hoạt động end-to-end.
 
 ---
 
@@ -19,6 +18,7 @@
 | REVIEW (re-check) | PASS | 2026-06-24 |
 | QA    | PARTIAL — migration pending | 2026-06-24 |
 | SHIP  | DONE | 2026-06-24 |
+| CANARY | PASS | 2026-06-24 |
 
 ---
 
