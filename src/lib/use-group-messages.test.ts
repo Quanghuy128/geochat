@@ -120,7 +120,150 @@ describe("useGroupMessages", () => {
       group_id: GROUP_ID,
       sender_id: ME_ID,
       body: "hello",
+      reply_to_message_id: null,
     });
+  });
+
+  it("send(): passes replyToMessageId through to the insert payload", async () => {
+    const REPLY_TARGET_ID = "66666666-6666-6666-6666-666666666666";
+    const { from, insertSpy, channel, removeChannel } = makeGroupMessagesFromMock({
+      memberRow: { left_at: null },
+    });
+    vi.mocked(createClient).mockReturnValue({ from, channel, removeChannel } as never);
+
+    const { result } = renderHook(() => useGroupMessages(GROUP_ID, { userId: ME_ID }));
+
+    await act(async () => {
+      await result.current.send("ok chốt giờ đó nha", REPLY_TARGET_ID);
+    });
+
+    expect(insertSpy).toHaveBeenCalledWith({
+      group_id: GROUP_ID,
+      sender_id: ME_ID,
+      body: "ok chốt giờ đó nha",
+      reply_to_message_id: REPLY_TARGET_ID,
+    });
+  });
+
+  it("send(): edge case #6 reply-scope trigger error does NOT set sendBlockedReason (not a removed-member signal)", async () => {
+    const { from, channel, removeChannel } = makeGroupMessagesFromMock({
+      memberRow: { left_at: null },
+      insertError: {
+        code: "P0001",
+        message: "group_messages: reply_to_message_id phai thuoc cung group_id (edge case #6)",
+      },
+    });
+    vi.mocked(createClient).mockReturnValue({ from, channel, removeChannel } as never);
+
+    const { result } = renderHook(() => useGroupMessages(GROUP_ID, { userId: ME_ID }));
+
+    await waitFor(() => {
+      expect(result.current.canSend).toBe(true);
+    });
+
+    let response: { error: string | null };
+    await act(async () => {
+      response = await result.current.send("hello", "cross-group-message-id");
+    });
+
+    expect(response!.error).not.toBeNull();
+    expect(result.current.canSend).toBe(true);
+    expect(result.current.sendBlockedReason).toBeNull();
+  });
+
+  it("send(): detects reply-scope violation via err.code === 'P0001', NOT by matching exception text (post-review fix #3 regression)", async () => {
+    const { from, channel, removeChannel } = makeGroupMessagesFromMock({
+      memberRow: { left_at: null },
+      insertError: {
+        code: "P0001",
+        message: "group_messages: some reworded exception text, no special substring here",
+      },
+    });
+    vi.mocked(createClient).mockReturnValue({ from, channel, removeChannel } as never);
+
+    const { result } = renderHook(() => useGroupMessages(GROUP_ID, { userId: ME_ID }));
+
+    await waitFor(() => {
+      expect(result.current.canSend).toBe(true);
+    });
+
+    let response: { error: string | null };
+    await act(async () => {
+      response = await result.current.send("hello", "cross-group-message-id");
+    });
+
+    expect(response!.error).not.toBeNull();
+    expect(result.current.canSend).toBe(true);
+    expect(result.current.sendBlockedReason).toBeNull();
+  });
+
+  it("send(): RLS denial (err.code === '42501') still sets sendBlockedReason even if message text happens to mention 'edge case #6' (post-review fix #3 regression)", async () => {
+    const { from, channel, removeChannel } = makeGroupMessagesFromMock({
+      memberRow: { left_at: null },
+      insertError: {
+        code: "42501",
+        message: "new row violates row-level security policy (edge case #6)",
+      },
+    });
+    vi.mocked(createClient).mockReturnValue({ from, channel, removeChannel } as never);
+
+    const { result } = renderHook(() => useGroupMessages(GROUP_ID, { userId: ME_ID }));
+
+    await waitFor(() => {
+      expect(result.current.canSend).toBe(true);
+    });
+
+    let response: { error: string | null };
+    await act(async () => {
+      response = await result.current.send("hello");
+    });
+
+    expect(response!.error).not.toBeNull();
+    expect(result.current.canSend).toBe(false);
+    expect(result.current.sendBlockedReason).toBe("removed");
+  });
+
+  it("load(): denormalizes replyPreview for messages whose reply target is in the same batch", async () => {
+    const ORIGINAL_ID = "77777777-7777-7777-7777-777777777777";
+    const REPLY_ID = "88888888-8888-8888-8888-888888888888";
+    const { from, channel, removeChannel } = makeGroupMessagesFromMock({
+      loadMessages: {
+        data: [
+          {
+            id: ORIGINAL_ID,
+            group_id: GROUP_ID,
+            sender_id: OTHER_ID,
+            body: "Ai đi muộn nữa thì ở nhà",
+            created_at: new Date(Date.now() - 1000).toISOString(),
+            reply_to_message_id: null,
+          },
+          {
+            id: REPLY_ID,
+            group_id: GROUP_ID,
+            sender_id: ME_ID,
+            body: "Rõ luôn",
+            created_at: new Date().toISOString(),
+            reply_to_message_id: ORIGINAL_ID,
+          },
+        ],
+        error: null,
+      },
+      profiles: { data: [{ id: OTHER_ID, username: "bob_tran" }], error: null },
+      memberRow: { left_at: null },
+    });
+    vi.mocked(createClient).mockReturnValue({ from, channel, removeChannel } as never);
+
+    const { result } = renderHook(() => useGroupMessages(GROUP_ID, { userId: ME_ID }));
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+    });
+
+    const reply = result.current.messages.find((m) => m.id === REPLY_ID)!;
+    expect(reply.replyToMessageId).toBe(ORIGINAL_ID);
+    expect(reply.replyPreview).not.toBeNull();
+    expect(reply.replyPreview!.senderLabel).toBe("@bob_tran");
+    expect(reply.replyPreview!.bodyPreview).toBe("Ai đi muộn nữa thì ở nhà");
   });
 
   it("membership hint: no active group_members row -> canSend=false, sendBlockedReason='removed' on mount", async () => {

@@ -61,6 +61,19 @@ export type DmConversation = {
   lastMessageMine: boolean;
 };
 
+/**
+ * Trích dẫn gọn của tin nhắn gốc khi 1 tin nhắn khác reply tới nó — đã denormalize đủ để
+ * render `QuotedMessagePreview` không cần round trip riêng (PLAN > Hooks modified mục
+ * use-dm-messages.ts/use-group-messages.ts). `null` nếu tin gốc reply tới không tìm thấy
+ * trong batch load hiện tại (ví dụ nằm ngoài `.limit(100)` — vẫn hiển thị link tới
+ * `replyToMessageId`, nhưng `replyPreview` rỗng, UI tự xử lý "không tìm thấy").
+ */
+export type ReplyPreview = {
+  messageId: string;
+  senderLabel: string;
+  bodyPreview: string;
+};
+
 /** 1 tin nhắn DM — row bảng `dm_messages`. */
 export type DmMessage = {
   id: string;
@@ -68,6 +81,9 @@ export type DmMessage = {
   senderId: string;
   body: string;
   createdAt: string; // ISO
+  replyToMessageId: string | null;
+  /** Denormalized — null nếu replyToMessageId null HOẶC tin gốc không có trong batch hiện tại. */
+  replyPreview: ReplyPreview | null;
 };
 
 /**
@@ -102,4 +118,19 @@ export type GroupMessage = {
   senderUsername: string;
   body: string;
   createdAt: string; // ISO
+  replyToMessageId: string | null;
+  /** Denormalized — null nếu replyToMessageId null HOẶC tin gốc không có trong batch hiện tại. */
+  replyPreview: ReplyPreview | null;
+};
+
+/**
+ * Tóm tắt reaction trên 1 tin nhắn, theo từng emoji — đủ data cho cả 2 mức hiển thị
+ * (THINK #6): count mặc định + danh sách userId đã react (username resolve lazily ở
+ * `ReactorListPopover`, KHÔNG pre-join ở đây — PLAN > Hooks mục "reactorUserIds").
+ */
+export type ReactionSummary = {
+  emoji: string;
+  count: number;
+  reactedByMe: boolean;
+  reactorUserIds: string[];
 };

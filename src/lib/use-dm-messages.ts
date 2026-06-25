@@ -12,6 +12,7 @@ type DmMessageRow = {
   sender_id: string;
   body: string;
   created_at: string;
+  reply_to_message_id: string | null;
 };
 
 type ConversationRow = {
@@ -20,13 +21,45 @@ type ConversationRow = {
   user_b_id: string;
 };
 
-function rowToDmMessage(r: DmMessageRow): DmMessage {
+/** Độ dài tối đa của preview trích dẫn tin gốc (ký tự) — đủ cho 1 dòng UI. */
+const REPLY_PREVIEW_MAX_LEN = 80;
+
+function truncateBody(body: string): string {
+  return body.length > REPLY_PREVIEW_MAX_LEN
+    ? `${body.slice(0, REPLY_PREVIEW_MAX_LEN)}…`
+    : body;
+}
+
+/**
+ * Map "id tin nhắn -> { senderLabel, bodyPreview }" cho TOÀN BỘ tin nhắn trong batch hiện tại
+ * — dùng để denormalize `replyPreview` không cần round trip riêng (PLAN > Hooks modified).
+ * `senderLabel` ở đây là "Bạn"/peerUsername — tính tại nơi gọi (load/Realtime handler) vì
+ * cần biết `myUserId`/`peerUsername`, hàm build map chỉ ghép theo id.
+ */
+function rowToDmMessage(
+  r: DmMessageRow,
+  resolveSenderLabel: (senderId: string) => string,
+  byId: Map<string, DmMessageRow>,
+): DmMessage {
+  let replyPreview: DmMessage["replyPreview"] = null;
+  if (r.reply_to_message_id) {
+    const target = byId.get(r.reply_to_message_id);
+    if (target) {
+      replyPreview = {
+        messageId: target.id,
+        senderLabel: resolveSenderLabel(target.sender_id),
+        bodyPreview: truncateBody(target.body),
+      };
+    }
+  }
   return {
     id: r.id,
     conversationId: r.conversation_id,
     senderId: r.sender_id,
     body: r.body,
     createdAt: r.created_at,
+    replyToMessageId: r.reply_to_message_id,
+    replyPreview,
   };
 }
 
@@ -41,7 +74,12 @@ export type UseDmMessages = {
   /** false nếu friend status hiện tại không còn `accepted` (client hint, không phải lưới an toàn — RLS ở DB mới là thật). */
   canSend: boolean;
   sendBlockedReason: SendBlockedReason;
-  send: (body: string) => Promise<{ error: string | null }>;
+  /**
+   * `replyToMessageId` (tùy chọn) — tham chiếu tới 1 tin nhắn CÙNG conversation này; DB
+   * trigger `dm_messages_check_reply_scope` raise exception nếu trỏ sai conversation (edge
+   * case #6) — hook không tự validate phía client, để DB là nguồn sự thật.
+   */
+  send: (body: string, replyToMessageId?: string | null) => Promise<{ error: string | null }>;
 };
 
 /**
@@ -64,6 +102,12 @@ export type UseDmMessages = {
 export function useDmMessages(
   conversationId: string | null,
   identity: { userId: string } | null,
+  /**
+   * Username của đối phương — dùng để denormalize `replyPreview.senderLabel` ("Bạn" vs
+   * "@peerUsername") không cần query thêm. Optional/best-effort: nếu chưa có (ví dụ truyền
+   * muộn), `senderLabel` rơi về "?" — không chặn render.
+   */
+  peerUsername?: string,
 ): UseDmMessages {
   const [messages, setMessages] = useState<DmMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -86,6 +130,19 @@ export function useDmMessages(
   useEffect(() => {
     conversationIdRef.current = conversationId;
   }, [conversationId]);
+  const peerUsernameRef = useRef(peerUsername);
+  useEffect(() => {
+    peerUsernameRef.current = peerUsername;
+  }, [peerUsername]);
+
+  const resolveSenderLabel = useCallback(
+    (senderId: string) => {
+      const me = identityRef.current?.userId;
+      if (senderId === me) return "Bạn";
+      return peerUsernameRef.current ? `@${peerUsernameRef.current}` : "?";
+    },
+    [],
+  );
 
   // load(): tách thành useCallback (giống pattern useFriends/useFriendRequests) — effect
   // bên dưới chỉ GỌI load(), không setState trực tiếp trong thân effect (tránh
@@ -123,7 +180,9 @@ export function useDmMessages(
       setLoading(false);
       return;
     }
-    setMessages(((data as DmMessageRow[] | null) ?? []).map(rowToDmMessage));
+    const rows = (data as DmMessageRow[] | null) ?? [];
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    setMessages(rows.map((r) => rowToDmMessage(r, resolveSenderLabel, byId)));
     setLoading(false);
 
     // Friend-status hint: tìm conversation → lấy peer id → check accepted friend_requests.
@@ -160,7 +219,7 @@ export function useDmMessages(
       setCanSend(false);
       setSendBlockedReason("unfriended");
     }
-  }, [supabase]);
+  }, [supabase, resolveSenderLabel]);
 
   // Load lịch sử + check friend status khi mở conversation (hoặc đổi conversation).
   // load() tự reset state rỗng nếu !supabase/!conversationId (đọc qua conversationIdRef)
@@ -201,10 +260,34 @@ export function useDmMessages(
         },
         (payload) => {
           if (cancelled) return;
-          const incoming = rowToDmMessage(payload.new as DmMessageRow);
-          setMessages((prev) =>
-            prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming],
-          );
+          const row = payload.new as DmMessageRow;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === row.id)) return prev;
+            // replyPreview denormalized từ batch ĐÃ LOADED hiện tại (prev) — không round
+            // trip riêng, đúng PLAN. Nếu tin gốc không có trong prev (ngoài window 100,
+            // hoặc đã bị xóa trong tương lai), replyPreview = null — UI tự xử lý.
+            let replyPreview: DmMessage["replyPreview"] = null;
+            if (row.reply_to_message_id) {
+              const target = prev.find((m) => m.id === row.reply_to_message_id);
+              if (target) {
+                replyPreview = {
+                  messageId: target.id,
+                  senderLabel: resolveSenderLabel(target.senderId),
+                  bodyPreview: truncateBody(target.body),
+                };
+              }
+            }
+            const incoming: DmMessage = {
+              id: row.id,
+              conversationId: row.conversation_id,
+              senderId: row.sender_id,
+              body: row.body,
+              createdAt: row.created_at,
+              replyToMessageId: row.reply_to_message_id,
+              replyPreview,
+            };
+            return [...prev, incoming];
+          });
         },
       )
       .subscribe();
@@ -216,10 +299,13 @@ export function useDmMessages(
       channelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [supabase, conversationId]);
+  }, [supabase, conversationId, resolveSenderLabel]);
 
   const send = useCallback(
-    async (body: string): Promise<{ error: string | null }> => {
+    async (
+      body: string,
+      replyToMessageId?: string | null,
+    ): Promise<{ error: string | null }> => {
       if (!supabase) return { error: "Supabase chưa cấu hình." };
       const userId = identityRef.current?.userId;
       if (!userId) return { error: "Bạn cần đăng nhập." };
@@ -232,9 +318,23 @@ export function useDmMessages(
         conversation_id: conversationId,
         sender_id: userId,
         body: trimmed,
+        reply_to_message_id: replyToMessageId ?? null,
       });
 
       if (err) {
+        // Edge case #6: trigger `dm_messages_check_reply_scope` dùng plain `raise exception`
+        // (KHÔNG có `using errcode`) khi reply_to_message_id trỏ sai conversation — Postgres
+        // surface plpgsql `raise exception` mặc định dưới SQLSTATE P0001, KHÁC với RLS policy
+        // denial (luôn là 42501). Post-review fix (blocker #3): dùng `err.code === "P0001"`
+        // thay vì substring-match trên `err.message` (brittle — text exception có thể đổi vì
+        // lý do không liên quan như i18n/sửa lỗi đánh máy, lúc đó substring-match âm thầm hỏng
+        // không có test nào bắt được, không phân biệt được "reply scope violation" với
+        // "RLS membership denial" nữa). KHÔNG phải dấu hiệu unfriended, không nên đánh sai
+        // sendBlockedReason (sẽ tự khóa luôn cả việc gửi tin thường tiếp theo, dù người dùng
+        // vẫn còn là bạn bè).
+        if (err.code === "P0001") {
+          return { error: "Không thể trả lời tin nhắn này (không cùng cuộc trò chuyện)." };
+        }
         // RLS chặn (unfriended tại thời điểm gửi, kể cả khi client hint stale) hoặc lỗi
         // khác — theo Interaction Notes design doc mục 5: coi RLS-denial như đã phát
         // hiện unfriended, cập nhật reactive ngay (không cần subscribe friend_requests riêng).

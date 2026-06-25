@@ -12,6 +12,7 @@ type GroupMessageRow = {
   sender_id: string;
   body: string;
   created_at: string;
+  reply_to_message_id: string | null;
 };
 
 type GroupMemberRow = {
@@ -25,6 +26,15 @@ type ProfileRow = {
   username: string;
 };
 
+/** Độ dài tối đa của preview trích dẫn tin gốc (ký tự) — đủ cho 1 dòng UI, đồng bộ DM. */
+const REPLY_PREVIEW_MAX_LEN = 80;
+
+function truncateBody(body: string): string {
+  return body.length > REPLY_PREVIEW_MAX_LEN
+    ? `${body.slice(0, REPLY_PREVIEW_MAX_LEN)}…`
+    : body;
+}
+
 export type SendBlockedReason = "removed" | null;
 
 export type UseGroupMessages = {
@@ -36,7 +46,12 @@ export type UseGroupMessages = {
   /** false nếu hiện không còn là active member (left_at not null) — client hint, RLS ở DB mới là lưới an toàn thật. */
   canSend: boolean;
   sendBlockedReason: SendBlockedReason;
-  send: (body: string) => Promise<{ error: string | null }>;
+  /**
+   * `replyToMessageId` (tùy chọn) — tham chiếu tới 1 tin nhắn CÙNG group này; DB trigger
+   * `group_messages_check_reply_scope` raise exception nếu trỏ sai group (edge case #6) —
+   * hook không tự validate phía client, để DB là nguồn sự thật.
+   */
+  send: (body: string, replyToMessageId?: string | null) => Promise<{ error: string | null }>;
 };
 
 /**
@@ -54,6 +69,10 @@ export type UseGroupMessages = {
  * - Realtime: subscribe `group-thread-{groupId}` — INSERT trên group_messages (filter
  *   group_id) + UPDATE trên group_members (filter group_id, để reactive blocked-send detection
  *   khi mình bị xóa/rời mà KHÔNG cần gửi thất bại trước — Interaction Notes mục 5).
+ * - `replyPreview` (reactions-replies-STATE.md PLAN): denormalize sender username + body
+ *   snippet của tin gốc, dùng batch ĐÃ LOAD (load()) hoặc state hiện tại (Realtime handler)
+ *   — KHÔNG round trip riêng. Nếu tin gốc không có trong batch/state hiện tại → null, UI
+ *   tự xử lý ("không tìm thấy" tương tự jump-to-original ngoài khung).
  *
  * Null-safe: Supabase chưa cấu hình hoặc identity/groupId null → ready=false/rỗng.
  */
@@ -126,15 +145,35 @@ export function useGroupMessages(
       );
     }
 
+    const me = identityRef.current?.userId;
+    const labelFor = (senderId: string) =>
+      senderId === me ? "Bạn" : `@${usernameById.get(senderId) ?? "?"}`;
+    const byId = new Map(rows.map((r) => [r.id, r]));
+
     setMessages(
-      rows.map((r) => ({
-        id: r.id,
-        groupId: r.group_id,
-        senderId: r.sender_id,
-        senderUsername: usernameById.get(r.sender_id) ?? "?",
-        body: r.body,
-        createdAt: r.created_at,
-      })),
+      rows.map((r) => {
+        let replyPreview: GroupMessage["replyPreview"] = null;
+        if (r.reply_to_message_id) {
+          const target = byId.get(r.reply_to_message_id);
+          if (target) {
+            replyPreview = {
+              messageId: target.id,
+              senderLabel: labelFor(target.sender_id),
+              bodyPreview: truncateBody(target.body),
+            };
+          }
+        }
+        return {
+          id: r.id,
+          groupId: r.group_id,
+          senderId: r.sender_id,
+          senderUsername: usernameById.get(r.sender_id) ?? "?",
+          body: r.body,
+          createdAt: r.created_at,
+          replyToMessageId: r.reply_to_message_id,
+          replyPreview,
+        };
+      }),
     );
     setLoading(false);
 
@@ -212,17 +251,34 @@ export function useGroupMessages(
             }
             if (cancelled) return;
 
-            const incoming: GroupMessage = {
-              id: row.id,
-              groupId: row.group_id,
-              senderId: row.sender_id,
-              senderUsername,
-              body: row.body,
-              createdAt: row.created_at,
-            };
-            setMessages((prev) =>
-              prev.some((msg) => msg.id === incoming.id) ? prev : [...prev, incoming],
-            );
+            setMessages((prev) => {
+              if (prev.some((msg) => msg.id === row.id)) return prev;
+              // replyPreview denormalized từ state ĐÃ LOADED hiện tại (prev) — không round
+              // trip riêng, đúng PLAN. Nếu tin gốc không có trong prev → replyPreview null.
+              let replyPreview: GroupMessage["replyPreview"] = null;
+              if (row.reply_to_message_id) {
+                const target = prev.find((msg) => msg.id === row.reply_to_message_id);
+                if (target) {
+                  replyPreview = {
+                    messageId: target.id,
+                    senderLabel:
+                      target.senderId === me ? "Bạn" : `@${target.senderUsername}`,
+                    bodyPreview: truncateBody(target.body),
+                  };
+                }
+              }
+              const incoming: GroupMessage = {
+                id: row.id,
+                groupId: row.group_id,
+                senderId: row.sender_id,
+                senderUsername,
+                body: row.body,
+                createdAt: row.created_at,
+                replyToMessageId: row.reply_to_message_id,
+                replyPreview,
+              };
+              return [...prev, incoming];
+            });
           })();
         },
       )
@@ -263,7 +319,10 @@ export function useGroupMessages(
   }, [supabase, groupId]);
 
   const send = useCallback(
-    async (body: string): Promise<{ error: string | null }> => {
+    async (
+      body: string,
+      replyToMessageId?: string | null,
+    ): Promise<{ error: string | null }> => {
       if (!supabase) return { error: "Supabase chưa cấu hình." };
       const userId = identityRef.current?.userId;
       if (!userId) return { error: "Bạn cần đăng nhập." };
@@ -276,9 +335,19 @@ export function useGroupMessages(
         group_id: groupId,
         sender_id: userId,
         body: trimmed,
+        reply_to_message_id: replyToMessageId ?? null,
       });
 
       if (err) {
+        // Edge case #6: trigger `group_messages_check_reply_scope` dùng plain `raise exception`
+        // khi reply_to_message_id trỏ sai group — Postgres surface plpgsql `raise exception`
+        // mặc định dưới SQLSTATE P0001, KHÁC với RLS policy denial (luôn là 42501). Post-review
+        // fix (blocker #3): dùng `err.code === "P0001"` thay vì substring-match trên
+        // `err.message` (brittle — xem use-dm-messages.ts cho giải thích đầy đủ). KHÔNG phải
+        // dấu hiệu "removed", không nên đánh sai sendBlockedReason.
+        if (err.code === "P0001") {
+          return { error: "Không thể trả lời tin nhắn này (không cùng nhóm)." };
+        }
         // RLS chặn (đã rời/bị xóa tại thời điểm gửi, kể cả khi client hint stale) —
         // coi RLS-denial như đã phát hiện "removed", cập nhật reactive ngay (giống DM).
         setCanSend(false);
