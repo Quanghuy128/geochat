@@ -132,7 +132,160 @@ describe("useDmMessages", () => {
       conversation_id: CONVERSATION_ID,
       sender_id: ME_ID,
       body: "hello",
+      reply_to_message_id: null,
     });
+  });
+
+  it("send(): passes replyToMessageId through to the insert payload", async () => {
+    const REPLY_TARGET_ID = "66666666-6666-6666-6666-666666666666";
+    const { from, insertSpy, channel, removeChannel } = makeDmMessagesFromMock({
+      conversationRow: { user_a_id: ME_ID, user_b_id: PEER_ID },
+      friendshipRow: { id: "fr-1" },
+    });
+    vi.mocked(createClient).mockReturnValue({ from, channel, removeChannel } as never);
+
+    const { result } = renderHook(() => useDmMessages(CONVERSATION_ID, { userId: ME_ID }));
+
+    await act(async () => {
+      await result.current.send("ok chốt giờ đó nha", REPLY_TARGET_ID);
+    });
+
+    expect(insertSpy).toHaveBeenCalledWith({
+      conversation_id: CONVERSATION_ID,
+      sender_id: ME_ID,
+      body: "ok chốt giờ đó nha",
+      reply_to_message_id: REPLY_TARGET_ID,
+    });
+  });
+
+  it("send(): edge case #6 reply-scope trigger error does NOT set sendBlockedReason (not an unfriend signal)", async () => {
+    const { from, channel, removeChannel } = makeDmMessagesFromMock({
+      conversationRow: { user_a_id: ME_ID, user_b_id: PEER_ID },
+      friendshipRow: { id: "fr-1" },
+      insertError: {
+        code: "P0001",
+        message: "dm_messages: reply_to_message_id phai thuoc cung conversation_id (edge case #6)",
+      },
+    });
+    vi.mocked(createClient).mockReturnValue({ from, channel, removeChannel } as never);
+
+    const { result } = renderHook(() => useDmMessages(CONVERSATION_ID, { userId: ME_ID }));
+
+    await waitFor(() => {
+      expect(result.current.canSend).toBe(true);
+    });
+
+    let response: { error: string | null };
+    await act(async () => {
+      response = await result.current.send("hello", "cross-conversation-message-id");
+    });
+
+    expect(response!.error).not.toBeNull();
+    // Stays unblocked — this is a reply-scope violation, NOT an unfriend signal.
+    expect(result.current.canSend).toBe(true);
+    expect(result.current.sendBlockedReason).toBeNull();
+  });
+
+  it("send(): detects reply-scope violation via err.code === 'P0001', NOT by matching exception text (post-review fix #3 regression)", async () => {
+    // Same SQLSTATE the DB trigger actually raises, but with a DIFFERENT/changed exception
+    // message text (no literal "edge case #6" substring) — proves detection no longer
+    // depends on brittle substring-matching against the trigger's exact wording.
+    const { from, channel, removeChannel } = makeDmMessagesFromMock({
+      conversationRow: { user_a_id: ME_ID, user_b_id: PEER_ID },
+      friendshipRow: { id: "fr-1" },
+      insertError: {
+        code: "P0001",
+        message: "dm_messages: some reworded exception text, no special substring here",
+      },
+    });
+    vi.mocked(createClient).mockReturnValue({ from, channel, removeChannel } as never);
+
+    const { result } = renderHook(() => useDmMessages(CONVERSATION_ID, { userId: ME_ID }));
+
+    await waitFor(() => {
+      expect(result.current.canSend).toBe(true);
+    });
+
+    let response: { error: string | null };
+    await act(async () => {
+      response = await result.current.send("hello", "cross-conversation-message-id");
+    });
+
+    expect(response!.error).not.toBeNull();
+    expect(result.current.canSend).toBe(true);
+    expect(result.current.sendBlockedReason).toBeNull();
+  });
+
+  it("send(): RLS denial (err.code === '42501') still sets sendBlockedReason even if message text happens to mention 'edge case #6' (post-review fix #3 regression)", async () => {
+    // Adversarial: an RLS-denial error whose message TEXT coincidentally contains the old
+    // substring trigger ("edge case #6") must NOT be misclassified as a reply-scope
+    // violation anymore — only err.code matters now.
+    const { from, channel, removeChannel } = makeDmMessagesFromMock({
+      conversationRow: { user_a_id: ME_ID, user_b_id: PEER_ID },
+      friendshipRow: { id: "fr-1" },
+      insertError: {
+        code: "42501",
+        message: "new row violates row-level security policy (edge case #6)",
+      },
+    });
+    vi.mocked(createClient).mockReturnValue({ from, channel, removeChannel } as never);
+
+    const { result } = renderHook(() => useDmMessages(CONVERSATION_ID, { userId: ME_ID }));
+
+    await waitFor(() => {
+      expect(result.current.canSend).toBe(true);
+    });
+
+    let response: { error: string | null };
+    await act(async () => {
+      response = await result.current.send("hello");
+    });
+
+    expect(response!.error).not.toBeNull();
+    expect(result.current.canSend).toBe(false);
+    expect(result.current.sendBlockedReason).toBe("unfriended");
+  });
+
+  it("load(): denormalizes replyPreview for messages whose reply target is in the same batch", async () => {
+    const ORIGINAL_ID = "77777777-7777-7777-7777-777777777777";
+    const REPLY_ID = "88888888-8888-8888-8888-888888888888";
+    const { from, channel, removeChannel } = makeDmMessagesFromMock({
+      loadMessages: {
+        data: [
+          {
+            id: ORIGINAL_ID,
+            conversation_id: CONVERSATION_ID,
+            sender_id: PEER_ID,
+            body: "Hẹn 7h tối nay nhé",
+            created_at: new Date(Date.now() - 1000).toISOString(),
+            reply_to_message_id: null,
+          },
+          {
+            id: REPLY_ID,
+            conversation_id: CONVERSATION_ID,
+            sender_id: ME_ID,
+            body: "Ok chốt giờ đó nha",
+            created_at: new Date().toISOString(),
+            reply_to_message_id: ORIGINAL_ID,
+          },
+        ],
+        error: null,
+      },
+      conversationRow: { user_a_id: ME_ID, user_b_id: PEER_ID },
+      friendshipRow: { id: "fr-1" },
+    });
+    vi.mocked(createClient).mockReturnValue({ from, channel, removeChannel } as never);
+
+    const { result } = renderHook(() => useDmMessages(CONVERSATION_ID, { userId: ME_ID }));
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+    });
+
+    const reply = result.current.messages.find((m) => m.id === REPLY_ID)!;
+    expect(reply.replyToMessageId).toBe(ORIGINAL_ID);
+    expect(reply.replyPreview).not.toBeNull();
+    expect(reply.replyPreview!.bodyPreview).toBe("Hẹn 7h tối nay nhé");
   });
 
   it("canSend/sendBlockedReason: no accepted friend_requests row -> canSend=false, sendBlockedReason='unfriended' on mount", async () => {

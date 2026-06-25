@@ -5,10 +5,18 @@ import { useAuth } from "@/lib/use-auth";
 import { useFriends } from "@/lib/use-friends";
 import { useGroupConversations } from "@/lib/use-group-conversations";
 import { useGroupMessages } from "@/lib/use-group-messages";
+import { useGroupMessageReactions } from "@/lib/use-group-message-reactions";
 import { useGroupMembers } from "@/lib/use-group-members";
+import { createClient } from "@/lib/supabase/client";
 import type { GroupConversation } from "@/lib/types";
 import { EmptyState, ErrorState, SkeletonRows } from "@/components/ui/states";
 import { FriendMultiSelect } from "@/components/friend-multi-select";
+import { MessageBubble } from "@/components/message-bubble";
+import { MessageReactions } from "@/components/message-reactions";
+import { MessageActionSheet } from "@/components/message-action-sheet";
+import { ReactorListPopover } from "@/components/reactor-list-popover";
+import { ReplyPreviewBar } from "@/components/reply-preview-bar";
+import { QuotedMessagePreview } from "@/components/quoted-message-preview";
 
 const MAX_GROUP_MEMBERS = 50;
 
@@ -356,9 +364,34 @@ function GroupThread({
   // mới cần). Vẫn subscribe đủ Realtime để pill count update live khi add/remove xảy ra
   // trong khi user đang ở Thread (Interaction Notes mục 5).
   const { members } = useGroupMembers(groupId, identity);
+
+  const messageIds = messages.map((m) => m.id);
+  const {
+    reactionsByMessageId,
+    reactBlockedReason,
+    react,
+    unreact,
+  } = useGroupMessageReactions(groupId, identity, messageIds);
+
   const [draft, setDraft] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
+  const [replyTarget, setReplyTarget] = useState<{
+    messageId: string;
+    senderLabel: string;
+    bodyPreview: string;
+  } | null>(null);
+  const [actionSheetMessageId, setActionSheetMessageId] = useState<string | null>(null);
+  const [reactorPopover, setReactorPopover] = useState<{ messageId: string; emoji: string } | null>(
+    null,
+  );
+  const [reactorUsernames, setReactorUsernames] = useState<string[]>([]);
+  const [reactorLoading, setReactorLoading] = useState(false);
+  const [jumpToast, setJumpToast] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+
+  const reactDisabled = sendBlockedReason !== null || reactBlockedReason !== null;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -369,13 +402,66 @@ function GroupThread({
     if (!body || !canSend) return;
     setSendError(null);
     const previousDraft = draft;
+    const previousReplyTarget = replyTarget;
     setDraft("");
+    setReplyTarget(null);
 
-    const { error: err } = await send(body);
+    const { error: err } = await send(body, previousReplyTarget?.messageId ?? null);
     if (err) {
       setDraft(previousDraft);
+      setReplyTarget(previousReplyTarget);
       setSendError(err);
     }
+  }
+
+  function handleReply(messageId: string) {
+    const target = messages.find((m) => m.id === messageId);
+    if (!target) return;
+    const mine = target.senderId === identity?.userId;
+    setReplyTarget({
+      messageId: target.id,
+      senderLabel: mine ? "Bạn" : `@${target.senderUsername}`,
+      bodyPreview: target.body.length > 80 ? `${target.body.slice(0, 80)}…` : target.body,
+    });
+    setActionSheetMessageId(null);
+  }
+
+  async function handlePickEmoji(messageId: string, emoji: string) {
+    setActionSheetMessageId(null);
+    await react(messageId, emoji);
+  }
+
+  async function openReactorList(messageId: string, emoji: string) {
+    setReactorPopover({ messageId, emoji });
+    setReactorLoading(true);
+    setReactorUsernames([]);
+    const summaries = reactionsByMessageId.get(messageId) ?? [];
+    const summary = summaries.find((s) => s.emoji === emoji);
+    const userIds = summary?.reactorUserIds ?? [];
+    if (userIds.length === 0) {
+      setReactorLoading(false);
+      return;
+    }
+    const supabase = createClient();
+    if (!supabase) {
+      setReactorLoading(false);
+      return;
+    }
+    const { data } = await supabase.from("profiles").select("username").in("id", userIds);
+    setReactorUsernames(((data as { username: string }[] | null) ?? []).map((p) => p.username));
+    setReactorLoading(false);
+  }
+
+  function jumpToOriginal(messageId: string) {
+    const el = messageRefs.current.get(messageId);
+    if (!el) {
+      setJumpToast("Không tìm thấy tin gốc trong lịch sử đã tải");
+      setTimeout(() => setJumpToast(null), 2000);
+      return;
+    }
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedId(messageId);
+    setTimeout(() => setHighlightedId(null), 1000);
   }
 
   const showMemberPill = sendBlockedReason === null;
@@ -410,20 +496,62 @@ function GroupThread({
         ) : (
           messages.map((m) => {
             const mine = m.senderId === identity?.userId;
+            const reactions = reactionsByMessageId.get(m.id) ?? [];
             return (
-              <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
-                <div className="text-xs text-zinc-500">
-                  {mine ? "Bạn" : `@${m.senderUsername}`} · {formatTime(m.createdAt)}
-                </div>
-                <div
-                  className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
-                    mine
-                      ? "bg-blue-600 text-white"
-                      : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
-                  }`}
-                >
-                  {m.body}
-                </div>
+              <div
+                key={m.id}
+                ref={(el) => {
+                  if (el) messageRefs.current.set(m.id, el);
+                  else messageRefs.current.delete(m.id);
+                }}
+                className={`relative rounded-lg transition-colors ${
+                  highlightedId === m.id ? "bg-yellow-100 dark:bg-yellow-900/30" : ""
+                }`}
+              >
+                <MessageBubble
+                  id={m.id}
+                  body={m.body}
+                  senderLabel={mine ? "Bạn" : `@${m.senderUsername}`}
+                  timeLabel={formatTime(m.createdAt)}
+                  mine={mine}
+                  onLongPress={(id) => !reactDisabled && setActionSheetMessageId(id)}
+                  quotedSlot={
+                    m.replyPreview ? (
+                      <QuotedMessagePreview
+                        senderLabel={m.replyPreview.senderLabel}
+                        bodyPreview={m.replyPreview.bodyPreview}
+                        onJumpToOriginal={() => jumpToOriginal(m.replyPreview!.messageId)}
+                        foundInView={messageIds.includes(m.replyPreview.messageId)}
+                      />
+                    ) : undefined
+                  }
+                  reactionsSlot={
+                    <MessageReactions
+                      reactions={reactions}
+                      disabled={reactDisabled}
+                      onToggleMine={() => unreact(m.id)}
+                      onOpenReactorList={(emoji) => openReactorList(m.id, emoji)}
+                      onOpenPicker={() => setActionSheetMessageId(m.id)}
+                    />
+                  }
+                />
+                <MessageActionSheet
+                  open={actionSheetMessageId === m.id}
+                  disabled={reactDisabled}
+                  onPickEmoji={(emoji) => handlePickEmoji(m.id, emoji)}
+                  onOpenFreeInput={() => undefined}
+                  onReply={() => handleReply(m.id)}
+                  onClose={() => setActionSheetMessageId(null)}
+                />
+                {reactorPopover?.messageId === m.id && (
+                  <ReactorListPopover
+                    open
+                    emoji={reactorPopover.emoji}
+                    usernames={reactorUsernames}
+                    loading={reactorLoading}
+                    onClose={() => setReactorPopover(null)}
+                  />
+                )}
               </div>
             );
           })
@@ -431,11 +559,19 @@ function GroupThread({
         <div ref={bottomRef} />
       </div>
 
+      {jumpToast && (
+        <p className="px-3 pb-1 text-xs text-zinc-500" role="status">
+          {jumpToast}
+        </p>
+      )}
+
       {sendBlockedReason === "removed" && (
         <p className="border-t border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-zinc-400">
           ⓘ Bạn không còn là thành viên nhóm này nên không thể gửi tin nhắn mới.
         </p>
       )}
+
+      <ReplyPreviewBar replyTarget={replyTarget} onCancel={() => setReplyTarget(null)} />
 
       {sendError && <p className="px-3 pt-2 text-xs text-red-500">⚠ {sendError}</p>}
 
