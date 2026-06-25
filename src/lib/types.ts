@@ -69,3 +69,37 @@ export type DmMessage = {
   body: string;
   createdAt: string; // ISO
 };
+
+/**
+ * 1 group chat — hook `useGroupConversations` đã join tin nhắn cuối + username người gửi
+ * + đếm thành viên hiện tại (left_at is null), component không phải tự join.
+ */
+export type GroupConversation = {
+  id: string;
+  name: string;
+  creatorId: string;
+  lastMessageBody: string | null;
+  /** ISO — fallback = group_conversations.created_at nếu chưa có tin nào. */
+  lastMessageAt: string;
+  lastMessageSenderUsername: string | null;
+  lastMessageMine: boolean;
+  memberCount: number;
+};
+
+/** 1 thành viên (hiện tại, left_at is null) của 1 group — đã join username. */
+export type GroupMember = {
+  id: string; // user id
+  username: string;
+  isCreator: boolean;
+  joinedAt: string; // ISO
+};
+
+/** 1 tin nhắn group — đã join username người gửi (khác DM — group có >1 "theirs" sender). */
+export type GroupMessage = {
+  id: string;
+  groupId: string;
+  senderId: string;
+  senderUsername: string;
+  body: string;
+  createdAt: string; // ISO
+};
