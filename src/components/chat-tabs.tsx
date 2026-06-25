@@ -2,9 +2,10 @@
 
 import { ChatPanel } from "@/components/chat-panel";
 import { DmPanel } from "@/components/dm-panel";
+import { GroupPanel } from "@/components/group-panel";
 import type { Message } from "@/lib/types";
 
-export type ChatTab = "global" | "dm";
+export type ChatTab = "global" | "dm" | "group";
 
 interface ChatTabsProps {
   /** Truyền thẳng xuống ChatPanel (Global) — contract không đổi. */
@@ -23,9 +24,11 @@ interface ChatTabsProps {
  * `ChatTabs` — tab switcher "Chung" (Global, ChatPanel nguyên trạng) / "Tin nhắn" (DM, mới).
  * Thay thế mount `<ChatPanel>` trực tiếp trong page.tsx (dm-chat-design.md mục 3.1 + 4).
  *
- * DmPanel UNMOUNT khi rời tab "Tin nhắn" (quyết định kỹ thuật PLAN mục 5) — đơn giản hóa
- * cleanup Realtime channel, đổi lại mất state inbox/thread khi tab-switch trong session.
- * ChatPanel (Global) giữ mounted nguyên trạng — KHÔNG đổi behavior chat toàn cục hiện tại.
+ * DmPanel/GroupPanel UNMOUNT khi rời tab tương ứng (quyết định kỹ thuật PLAN mục 5, áp
+ * dụng nhất quán cho group-chat-STATE.md > PLAN > mục "Subscribe channels and cleanup") —
+ * đơn giản hóa cleanup Realtime channel, đổi lại mất state inbox/thread khi tab-switch
+ * trong session. ChatPanel (Global) giữ mounted nguyên trạng — KHÔNG đổi behavior chat
+ * toàn cục hiện tại.
  */
 export function ChatTabs({
   fallback,
@@ -40,6 +43,7 @@ export function ChatTabs({
       <div className="flex border-b border-zinc-200 px-2 dark:border-zinc-800">
         <TabButton active={activeTab === "global"} onClick={() => onTabChange("global")} label="Chung" />
         <TabButton active={activeTab === "dm"} onClick={() => onTabChange("dm")} label="Tin nhắn" />
+        <TabButton active={activeTab === "group"} onClick={() => onTabChange("group")} label="Nhóm" />
       </div>
 
       <div className="flex-1 overflow-hidden">
@@ -48,12 +52,14 @@ export function ChatTabs({
           // chat-panel.tsx (contract/behavior bất biến theo PLAN). Tab bar ở trên thay
           // thế vị trí mà header cũ của ChatPanel chiếm khi nó là panel độc lập.
           <ChatPanel fallback={fallback} />
-        ) : (
+        ) : activeTab === "dm" ? (
           <DmPanel
             pendingOpenFriendId={pendingOpenFriendId}
             pendingOpenFriendUsername={pendingOpenFriendUsername}
             onConsumedPendingOpen={onConsumedPendingOpen}
           />
+        ) : (
+          <GroupPanel />
         )}
       </div>
     </div>
